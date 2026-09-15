@@ -10,9 +10,9 @@ I built it for my own search and I'm sharing it so you can run yours. If it help
 
 Four tabs on one page:
 
-- **Today** — day and week counter for your search, weekly stats (applied vs. goal, pipeline, interviewing, follow-ups due), a weekday block schedule, and this week's study focus.
+- **Today** — day and week counter for your search, weekly stats (applied vs. goal, pipeline, interviewing, follow-ups due), the day block by block, and this week's study focus. Both the schedule and the focus have an **Edit** button: rewrite them in plain text, and Reset brings the track's version back.
 - **Applications** — the tracker. Each application moves through `saved → applied → screen → technical → onsite → offer` (or `rejected` / `withdrawn`). Every status change is logged, so you can see which sources actually convert.
-- **Study plan** — an 8-week checklist in two tracks: **General** (any role: resume, story bank, applications, outreach, interview practice, negotiation) and **Software engineering** (adds algorithms, system design, and coding mocks). Pick yours in settings. Progress is saved per item.
+- **Study plan** — an 8-week checklist in two tracks: **General** (any role: resume, story bank, applications, outreach, interview practice, negotiation) and **Software engineering** (adds algorithms, system design, and coding mocks). Pick yours in settings. Progress is saved per item. Each track is one JSON file in `tracks/`, so a track for your field is a small contribution (see below).
 - **Companies** — 95 employers to start from, each with a live job board that lists every open role, in every function. See below.
 
 Everything is stored locally. Export a JSON backup any time and import it on another machine.
@@ -42,6 +42,45 @@ go build -o hq .
 | `-addr` | `127.0.0.1:8787` | listen address |
 
 The server has **no authentication** and is meant for one person on one machine. Keep it on localhost.
+
+## Make it yours
+
+The track gives you a default day and a default week focus. Both are editable from the Today tab, and both come back with one click.
+
+**The day, block by block → Edit.** One block per line, `time | length | title | what to do`, under a heading per day:
+
+```
+# Weekdays
+8:30 | 30 min | Plan the day | Clear follow-ups, pick today's three target roles
+9:00 | 2 hrs | Portfolio work | One piece, start to finish, timer on
+11:00 | 15 min | Break
+11:15 | 75 min | Applications | Three to five, each tailored, logged here
+
+# Saturday
+— | | Light day | One application, then rest
+```
+
+`# Weekdays` covers Monday to Friday; `# Monday` … `# Sunday` override a single day. A day you leave out keeps the track's version. The editor opens pre-filled with your current schedule, so you can change one line and save. **Reset to track default** deletes your version.
+
+**Week N focus → Edit.** Rename the row labels and rewrite the lines for any week:
+
+```
+# Labels
+Pipeline
+Story
+Practice
+
+# Week 1
+Twenty target accounts, with a reason for each
+Your 90-second intro, recorded and timed
+Six common questions for your role, answered out loud
+```
+
+Weeks you leave out keep the track's lines. The Study tab uses the same labels and lines.
+
+Both are stored in your database as settings and travel with export/import. Switching tracks keeps them.
+
+**Adding a study track.** A track is one file in `tracks/`, for example `tracks/sales.json`, with the same shape as `tracks/general.json`: `id` (equal to the filename), `label`, `sub`, `weighting`, `rulesTitle`, `rules`, `focusLabels`, `groups`, `resources`, `schedule`, `afternoon`, `weekend`, and `plan` (eight weeks, each with `theme`, `targets`, `focus` lines matching `focusLabels`, and `items` with stable ids). Item ids are progress keys and must be unique across all tracks, so pick a prefix for yours (`s1-accounts`, `s1-intro`, …). `go test ./...` checks all of that and names the problem; `go run .` then shows the track in settings.
 
 ## What's seeded on first run
 
@@ -145,6 +184,7 @@ All JSON. The page is the only client, but nothing stops a script from using it.
 | method | path | body |
 |---|---|---|
 | GET | `/api/state` | — → `{apps, companies, done, settings}` |
+| GET | `/api/tracks` | — → the study tracks keyed by id, straight from `tracks/*.json` |
 | GET | `/api/export` | same as state, served as a download (backup) |
 | POST | `/api/import` | the export shape; upserts apps and companies, adds study items, applies settings |
 | PUT | `/api/applications/{id}` | application object (see `Application` in `main.go`); upsert |
@@ -152,7 +192,7 @@ All JSON. The page is the only client, but nothing stops a script from using it.
 | PUT | `/api/companies/{id}` | company object; upsert |
 | DELETE | `/api/companies/{id}` | — |
 | PUT | `/api/study` | `{"done": {"w1-resume": true, ...}}` — replaces the full set |
-| PUT | `/api/settings` | `{"startDate": "YYYY-MM-DD", "weeklyGoal": 20, "track": "general"}` — track is `general` or `engineering` |
+| PUT | `/api/settings` | `{"startDate": "YYYY-MM-DD", "weeklyGoal": 20, "track": "general", "schedule": {...}, "focus": {...}}` — `track` is a track id; `schedule` is `{"weekday"\|"mon"…"sun": [{t, d, w, h, c}]}` and `focus` is `{"labels": [...], "weeks": {"1": [...]}}`; for those two, `null` clears and leaving the key out keeps what is stored |
 
 Ids are client-generated and match `^[A-Za-z0-9_-]{1,64}$`. Timestamps are server-set RFC3339 UTC; dates you enter are plain `YYYY-MM-DD`.
 
@@ -160,8 +200,11 @@ Ids are client-generated and match `^[A-Za-z0-9_-]{1,64}$`. Timestamps are serve
 
 ```
 main.go                        HTTP server, SQLite schema, REST API, first-run seeding
-main_test.go                   httptest suite against a temp-file database
+tracks.go                      loads and validates tracks/*.json, serves them, injects them into the page
+customize.go                   validation for the per-user schedule and focus settings
+*_test.go                      httptest suite against a temp-file database, incl. property tests
 web/index.html                 the whole UI — inline CSS + vanilla JS, no build step, embedded with go:embed
+tracks/*.json                  the study tracks — one file each, compiled into the binary
 seed.json                      first-run data (never overwrites existing rows)
 .claude/skills/find-jobs/      the Claude Code skill that searches the job boards
 ```
@@ -184,7 +227,7 @@ CI (`.github/workflows/ci.yml`) runs `go vet`, `gofmt -l`, `go build`, and `go t
 
 ## Contributing
 
-Issues and pull requests are welcome. Good first contributions: more companies with public board feeds in `seed.json`, a study track for a specific field (sales, design, data, recruiting), and fixes to the page. Keep the spirit of the tool: single binary, single page, local first, no dependencies beyond the standard library and the SQLite driver.
+Issues and pull requests are welcome. Good first contributions: more companies with public board feeds in `seed.json`, a study track for a specific field (sales, design, data, recruiting — one file in `tracks/`, see "Adding a study track" above), and fixes to the page. Keep the spirit of the tool: single binary, single page, local first, no dependencies beyond the standard library and the SQLite driver.
 
 ## License
 
