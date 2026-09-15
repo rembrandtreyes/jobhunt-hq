@@ -12,8 +12,8 @@ Four tabs on one page:
 
 - **Today** — day and week counter for your search, weekly stats (applied vs. goal, pipeline, interviewing, follow-ups due), a weekday block schedule, and this week's study focus.
 - **Applications** — the tracker. Each application moves through `saved → applied → screen → technical → onsite → offer` (or `rejected` / `withdrawn`). Every status change is logged, so you can see which sources actually convert.
-- **Study plan** — an 8-week interview-prep checklist for software engineers (algorithms, system design, behavioral, applications, outreach, mocks). Progress is saved per item.
-- **Companies** — 95 engineering employers to start from, each with a live job board. See below.
+- **Study plan** — an 8-week checklist in two tracks: **General** (any role: resume, story bank, applications, outreach, interview practice, negotiation) and **Software engineering** (adds algorithms, system design, and coding mocks). Pick yours in settings. Progress is saved per item.
+- **Companies** — 95 employers to start from, each with a live job board that lists every open role, in every function. See below.
 
 Everything is stored locally. Export a JSON backup any time and import it on another machine.
 
@@ -27,7 +27,7 @@ cd jobhunt-hq
 go run .          # → http://127.0.0.1:8787   (creates hq.db in the current directory)
 ```
 
-Open the page, click the gear icon, set your **start date** and **weekly goal**. That's the whole setup.
+Open the page, click the gear icon, set your **start date**, **weekly goal**, and **study track** (General or Software engineering). That's the whole setup.
 
 To keep a binary around:
 
@@ -45,10 +45,10 @@ The server has **no authentication** and is meant for one person on one machine.
 
 ## What's seeded on first run
 
-The first run loads `seed.json`: **95 companies that were hiring software, backend, frontend, and DevOps/SRE engineers on 2026-09-15**, chosen because their job boards (Greenhouse, Lever, or Ashby) expose a public feed. It is sample data generated from those feeds, not anyone's application list, and the counts go stale. For each one:
+The first run loads `seed.json`: **95 companies whose job boards (Greenhouse, Lever, or Ashby) expose a public feed**. On 2026-09-15 those boards listed **19,653 open roles** across engineering, sales, product, design, data, marketing, customer success, recruiting, finance, and operations, and about 60% of them were outside engineering. It is sample data generated from those feeds, not anyone's application list, and the counts go stale. For each one:
 
-- **Priority** A / B / C is set by how many engineering roles were open on 2026-09-15 (A = 100 or more, B = 20 or more, C = fewer). Re-rank them for yourself; it's your list.
-- **Why** and **Signal** summarize that day's board: how many engineering roles, how many remote, the most-listed location.
+- **Priority** A / B / C is set by how many roles were open on 2026-09-15 (A = 300 or more, B = 75 or more, C = fewer). Re-rank them for yourself; it's your list.
+- **Why** and **Signal** summarize that day's board: total open roles, the biggest functions, how many remote, the most-listed US or remote location.
 - **Careers link** opens the board. The hidden `sourceUrl` on each row is the board's JSON feed, which is what the job search below reads.
 
 Seeding never overwrites rows that already exist. To start from your own list, edit `seed.json` before the first run, or delete `hq.db` and run again. The Companies tab lets you add, edit, and delete freely.
@@ -57,9 +57,13 @@ Seeding never overwrites rows that already exist. To start from your own list, e
 
 **With Claude Code.** The repo ships a project skill at `.claude/skills/find-jobs/`. With the server running, open Claude Code in the repo and say something like:
 
-> find senior backend and devops roles, remote or Phoenix
+> find customer success and account manager roles, remote or Phoenix
 
-It reads every company's live feed, filters by your titles and location, skips postings you already have, shows you a table, and saves the ones you pick as `saved` applications with a follow-up date. Name a company that isn't in your list and it will look for that company's board and offer to add it.
+or
+
+> find senior backend and devops roles, remote
+
+It reads every company's live feed, filters by your titles and location, skips postings you already have, shows you a table, and saves the ones you pick as `saved` applications with a follow-up date. Any function works; the feeds are the companies' whole boards. Name a company that isn't in your list and it will look for that company's board and offer to add it.
 
 The skill is just a markdown file. If you don't use Claude Code, ignore or delete the `.claude/` directory; nothing else depends on it.
 
@@ -67,7 +71,7 @@ The skill is just a markdown file. If you don't use Claude Code, ignore or delet
 
 ```sh
 curl -s https://boards-api.greenhouse.io/v1/boards/grafanalabs/jobs \
-  | python3 -c 'import json,sys; [print(j["title"], "—", j["location"]["name"], "—", j["absolute_url"]) for j in json.load(sys.stdin)["jobs"] if "engineer" in j["title"].lower()]'
+  | python3 -c 'import json,sys; [print(j["title"], "—", j["location"]["name"], "—", j["absolute_url"]) for j in json.load(sys.stdin)["jobs"] if "manager" in j["title"].lower()]'
 ```
 
 Lever feeds are `https://api.lever.co/v0/postings/<slug>?mode=json` (fields `text`, `categories.location`, `hostedUrl`) and Ashby feeds are `https://api.ashbyhq.com/posting-api/job-board/<slug>` (fields `title`, `location`, `jobUrl`).
@@ -148,7 +152,7 @@ All JSON. The page is the only client, but nothing stops a script from using it.
 | PUT | `/api/companies/{id}` | company object; upsert |
 | DELETE | `/api/companies/{id}` | — |
 | PUT | `/api/study` | `{"done": {"w1-resume": true, ...}}` — replaces the full set |
-| PUT | `/api/settings` | `{"startDate": "YYYY-MM-DD", "weeklyGoal": 20}` |
+| PUT | `/api/settings` | `{"startDate": "YYYY-MM-DD", "weeklyGoal": 20, "track": "general"}` — track is `general` or `engineering` |
 
 Ids are client-generated and match `^[A-Za-z0-9_-]{1,64}$`. Timestamps are server-set RFC3339 UTC; dates you enter are plain `YYYY-MM-DD`.
 
@@ -180,7 +184,7 @@ CI (`.github/workflows/ci.yml`) runs `go vet`, `gofmt -l`, `go build`, and `go t
 
 ## Contributing
 
-Issues and pull requests are welcome. Good first contributions: more companies with public board feeds in `seed.json`, a study plan for a different role, and fixes to the page. Keep the spirit of the tool: single binary, single page, local first, no dependencies beyond the standard library and the SQLite driver.
+Issues and pull requests are welcome. Good first contributions: more companies with public board feeds in `seed.json`, a study track for a specific field (sales, design, data, recruiting), and fixes to the page. Keep the spirit of the tool: single binary, single page, local first, no dependencies beyond the standard library and the SQLite driver.
 
 ## License
 

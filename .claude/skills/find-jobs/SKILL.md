@@ -1,11 +1,11 @@
 ---
 name: find-jobs
-description: Search the live job boards of the companies in Job Hunt HQ (and the wider web) for open roles that match your target titles and locations, then save the good ones into the tracker as `saved` applications. USE WHEN find jobs, search jobs, look for roles, what's open, refresh openings, find backend/frontend/devops/SWE roles, add postings to my tracker.
+description: Search the live job boards of the companies in Job Hunt HQ for open roles in any function — engineering, product, design, data, sales, marketing, customer success, recruiting, finance, operations — that match the titles and locations you give it, then save the ones you pick into the tracker as `saved` applications. USE WHEN find jobs, search jobs, look for roles, what's open, refresh openings, add postings to my tracker.
 ---
 
 # find-jobs
 
-Job Hunt HQ seeds its Companies tab with engineering employers whose job boards expose a public JSON feed. This skill reads those feeds, filters them against what the user is looking for, shows the matches, and (after the user confirms) saves them into the tracker so they show up on the Applications tab with a next action.
+Job Hunt HQ seeds its Companies tab with employers whose job boards expose a public JSON feed. Each feed lists every open role at the company, in every function, not just engineering. This skill reads those feeds, filters them against what the user is looking for, shows the matches, and (after the user confirms) saves them into the tracker so they show up on the Applications tab with a next action.
 
 The local server must be running: `go run .` in the repo, or `./hq -db ~/jobhunt/hq.db`. Default base URL is `http://127.0.0.1:8787`.
 
@@ -13,7 +13,7 @@ The local server must be running: `go run .` in the repo, or `./hq -db ~/jobhunt
 
 Ask only for what is missing. Sensible defaults in brackets.
 
-- **Titles / keywords** [Software Engineer, Backend, Frontend, Full Stack, DevOps, SRE, Platform, Infrastructure]
+- **Titles / keywords** — required, no default; ask if not given. Any function works: "account executive", "product manager", "recruiter", "customer success manager", "financial analyst", "UX designer", "data analyst", "marketing manager", "backend engineer". Take several at once.
 - **Seniority** [any] — e.g. "Senior", "Staff", "no intern/new grad"
 - **Location** [Remote, or the user's city] — match against the posting's location text
 - **Companies** [all seeded companies] — or a subset by name
@@ -74,7 +74,7 @@ For each chosen posting, `PUT /api/applications/{id}` with a client-generated id
 
 ## Step 6 — Update the company signal (optional, cheap)
 
-For each company you fetched, `PUT /api/companies/{id}` with the existing company object and `signal` set to `"<N> engineering roles open, <R> remote, as of <today>"`. This keeps the Companies tab honest without the user doing anything.
+For each company you fetched, `PUT /api/companies/{id}` with the existing company object and `signal` set to `"<N> open roles, <R> remote, as of <today>"` (all functions). This keeps the Companies tab honest without the user doing anything.
 
 ## Beyond the seeded companies
 
