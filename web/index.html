@@ -247,6 +247,13 @@
   .sched li.deep .w::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--accent); margin-right: 8px; vertical-align: 1px; }
   .sched li.apply .w::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--info); margin-right: 8px; vertical-align: 1px; }
   .sched li.rest .w { color: var(--muted); font-weight: 500; }
+  .panel-tools { display: flex; align-items: center; gap: 10px; }
+  .editor { display: grid; gap: 10px; }
+  .editor .hint { font-size: 13px; color: var(--muted); }
+  .editor .hint code { font-family: var(--mono); font-size: 12px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+  .editor textarea { font-family: var(--mono); font-size: 12.5px; line-height: 1.55; min-height: 300px; white-space: pre; overflow-x: auto; }
+  .editor .actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .editor .actions .spacer { flex: 1; }
 
   .due { list-style: none; margin: 0; padding: 0; }
   .due li { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
@@ -437,10 +444,23 @@
         <div class="panel">
           <div class="panel-h">
             <h3 id="sched-title">The day</h3>
-            <span class="label" id="sched-total"></span>
+            <span class="panel-tools">
+              <span class="label" id="sched-total"></span>
+              <button class="btn btn-ghost btn-sm" type="button" data-action="edit-schedule" title="Rewrite the blocks in plain text">Edit</button>
+            </span>
           </div>
-          <div class="panel-b">
+          <div class="panel-b" id="sched-wrap">
             <ul class="sched" id="sched"></ul>
+          </div>
+          <div class="panel-b editor" id="sched-editor" hidden>
+            <p class="hint">One block per line: <code>time | length | title | what to do</code>. A heading such as <code># Weekdays</code>, <code># Monday</code> or <code># Saturday</code> starts a day. A weekday without its own section uses <code># Weekdays</code>; a day you leave out keeps the track's version.</p>
+            <textarea id="sched-text" spellcheck="false" aria-label="Schedule, one block per line"></textarea>
+            <div class="actions">
+              <button class="btn btn-ghost btn-sm" type="button" data-action="reset-schedule">Reset to track default</button>
+              <span class="spacer"></span>
+              <button class="btn btn-ghost btn-sm" type="button" data-action="cancel-schedule">Cancel</button>
+              <button class="btn btn-primary btn-sm" type="button" data-action="save-schedule">Save</button>
+            </div>
           </div>
         </div>
       </div>
@@ -683,6 +703,58 @@
   function track() { return TRACKS[state.settings.track] || TRACKS[DEFAULT_TRACK]; }
   const trackOptions = selected => TRACK_IDS.map(k => '<option value="' + esc(k) + '"' + (k === selected ? ' selected' : '') + '>' + esc(TRACKS[k].label) + '</option>').join('');
 
+  /* ---------- customization: pure helpers ---------- */
+  // The user's own schedule lives in settings.schedule as {weekday|mon..sun: [block]};
+  // the editor turns it into text and back. Everything here is free of DOM and state.
+  const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  const DAY_NAMES = { weekday: 'Weekdays', mon: 'Monday', tue: 'Tuesday', wed: 'Wednesday', thu: 'Thursday', fri: 'Friday', sat: 'Saturday', sun: 'Sunday' };
+  const SECTION_KEYS = { weekdays: 'weekday', weekday: 'weekday', 'mon-fri': 'weekday', 'monday-friday': 'weekday', monday: 'mon', mon: 'mon', tuesday: 'tue', tue: 'tue', wednesday: 'wed', wed: 'wed', thursday: 'thu', thu: 'thu', friday: 'fri', fri: 'fri', saturday: 'sat', sat: 'sat', sunday: 'sun', sun: 'sun' };
+  // Marker style from the title, so a rewritten day still gets the coloured squares.
+  const blockStyle = w => /^(break|lunch|rest|walk|light day|day off)\b/i.test(w) ? 'rest' : /^(applications?|outreach|follow[- ]?ups?|apply)\b/i.test(w) ? 'apply' : /(practice|deep work|design|case|study|portfolio|work sample|writing|problems?)\b/i.test(w) ? 'deep' : '';
+  // The track's blocks for a day of week: the weekday list with the varying afternoon filled in, or the weekend list.
+  function trackDay(tr, dow) {
+    if (dow === 0 || dow === 6) return (tr.weekend && tr.weekend[dow]) || [];
+    return (tr.schedule || []).map(s => s.vary ? Object.assign({}, s, (tr.afternoon && tr.afternoon[dow]) || {}) : s);
+  }
+  // What Today shows: the custom day, else the custom weekday list (Mon–Fri), else the track.
+  function resolveSchedule(tr, custom, dow) {
+    const key = DAY_KEYS[dow];
+    if (custom && custom[key]) return { items: custom[key], custom: true };
+    if (custom && custom.weekday && dow >= 1 && dow <= 5) return { items: custom.weekday, custom: true };
+    return { items: trackDay(tr, dow), custom: false };
+  }
+  const blockLine = b => [b.t || '', b.d || '', b.w || '', b.h || ''].join(' | ');
+  const sameBlocks = (a, b) => a.length === b.length && a.every((x, i) => blockLine(x) === blockLine(b[i]));
+  function scheduleToText(tr, custom) {
+    const keys = custom ? ['weekday', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].filter(k => custom[k]) : ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+    return keys.map(k => '# ' + DAY_NAMES[k] + '\n' + (custom ? custom[k] : trackDay(tr, DAY_KEYS.indexOf(k))).map(blockLine).join('\n')).join('\n\n') + '\n';
+  }
+  // Text → {day: [block]}. Throws an Error that names the line.
+  function parseScheduleText(text) {
+    const out = {}; let key = null;
+    String(text).split('\n').forEach((raw, i) => {
+      const line = raw.trim(); if (!line) return;
+      const at = 'Line ' + (i + 1) + ': ';
+      if (line[0] === '#') {
+        const name = line.replace(/^#+\s*/, '').trim().toLowerCase();
+        key = SECTION_KEYS[name];
+        if (!key) throw new Error(at + 'unknown day "' + name + '". Headings are Weekdays, Monday … Sunday.');
+        out[key] = out[key] || []; return;
+      }
+      if (!key) throw new Error(at + 'start with a day heading such as "# Weekdays".');
+      const f = line.split('|').map(s => s.trim());
+      const b = f.length === 2 ? { t: f[0], d: '', w: f[1], h: '' } : f.length === 3 ? { t: f[0], d: f[1], w: f[2], h: '' } : { t: f[0], d: f[1] || '', w: f[2] || '', h: f.slice(3).join(' | ') };
+      if (!b.w) throw new Error(at + 'needs a title — time | length | title | what to do.');
+      if (b.t.length > 16 || b.d.length > 24 || b.w.length > 80 || b.h.length > 300) throw new Error(at + 'too long (time ≤ 16, length ≤ 24, title ≤ 80, note ≤ 300 characters).');
+      if (out[key].length >= 40) throw new Error(at + 'more than 40 blocks in one day.');
+      const c = blockStyle(b.w); if (c) b.c = c;
+      out[key].push(b);
+    });
+    if (!Object.keys(out).length) throw new Error('Nothing to save. Start with a day heading such as "# Weekdays".');
+    return out;
+  }
+  /* ---------- /customization ---------- */
+
   const EXAMPLES = (() => {
     const t = todayISO();
     const d = n => iso(addDays(parse(t), n));
@@ -697,7 +769,7 @@
   const state = {
     tab: 'today',
     apps: [], companies: [], done: {},
-    settings: { startDate: '', weeklyGoal: 20, track: DEFAULT_TRACK },
+    settings: { startDate: '', weeklyGoal: 20, track: DEFAULT_TRACK, schedule: null },
     mode: 'local', loaded: false,
     filter: 'all', query: '',
     openWeeks: null
@@ -723,6 +795,7 @@
       state.companies = Array.isArray(s.companies) ? s.companies : [];
       state.done = s.done && typeof s.done === 'object' ? s.done : {};
       if (s.settings) { if (s.settings.startDate) state.settings.startDate = s.settings.startDate; if (s.settings.weeklyGoal) state.settings.weeklyGoal = s.settings.weeklyGoal; if (TRACKS[s.settings.track]) state.settings.track = s.settings.track; }
+      state.settings.schedule = s.settings && s.settings.schedule && typeof s.settings.schedule === 'object' ? s.settings.schedule : null;
       if (!(s.settings && TRACKS[s.settings.track]) && TRACKS.engineering && Object.keys(state.done).some(id => /^w\d/.test(id) && state.done[id])) state.settings.track = 'engineering';
       state.loaded = true; state.mode = 'db'; renderAll();
     },
@@ -736,7 +809,8 @@
     async saveCompany(c) { await api('PUT', '/api/companies/' + encodeURIComponent(c.id), stripId(c)); await this.refresh(); },
     async deleteCompany(id) { await api('DELETE', '/api/companies/' + encodeURIComponent(id)); await this.refresh(); },
     async saveDone() { await api('PUT', '/api/study', { done: state.done }); },
-    async saveSettings() { await api('PUT', '/api/settings', { startDate: state.settings.startDate, weeklyGoal: +state.settings.weeklyGoal || 0, track: state.settings.track }); await this.refresh(); }
+    // patch adds or overrides fields, e.g. { schedule: null } to reset the day.
+    async saveSettings(patch) { await api('PUT', '/api/settings', Object.assign({ startDate: state.settings.startDate, weeklyGoal: +state.settings.weeklyGoal || 0, track: state.settings.track }, patch || {})); await this.refresh(); }
   };
   function stripId(o) { const c = Object.assign({}, o); delete c.id; delete c.example; return c; }
 
@@ -832,17 +906,16 @@
       stat('Interviewing', interviews, 'Screens and loops in progress') +
       stat('Follow-ups due', due.length, due.length ? 'Next step date is today or earlier' : 'Nothing overdue', null, due.length > 0);
 
-    // schedule
-    let items;
+    // schedule: the user's own blocks when saved, else the track's day
     const tr = track();
-    if (tr.weekend[dow]) { items = tr.weekend[dow]; $('#sched-title').textContent = dow === 6 ? 'Saturday' : 'Sunday'; $('#sched-total').textContent = 'weekend'; }
-    else {
-      items = tr.schedule.map(s => s.vary ? Object.assign({}, s, tr.afternoon[dow]) : s);
-      $('#sched-title').textContent = 'The day, block by block'; $('#sched-total').textContent = '8:30 – 4:30 · 7 focused hours';
-    }
-    $('#sched').innerHTML = items.map(s =>
+    const sc = resolveSchedule(tr, state.settings.schedule, dow);
+    const items = sc.items;
+    const weekendDay = dow === 0 || dow === 6;
+    $('#sched-title').textContent = dow === 6 ? 'Saturday' : dow === 0 ? 'Sunday' : 'The day, block by block';
+    $('#sched-total').textContent = sc.custom ? 'your schedule · ' + items.length + (items.length === 1 ? ' block' : ' blocks') : weekendDay ? 'weekend' : '8:30 – 4:30 · 7 focused hours';
+    $('#sched').innerHTML = items.length ? items.map(s =>
       '<li class="' + esc(s.c) + '"><div class="t">' + esc(s.t) + (s.d ? '<small>' + esc(s.d) + '</small>' : '') + '</div><div><div class="w">' + esc(s.w) + '</div><div class="h">' + esc(s.h) + '</div></div></li>'
-    ).join('');
+    ).join('') : '<li><div class="t">—</div><div><div class="w">Nothing scheduled</div><div class="h">Click Edit to add blocks.</div></div></li>';
 
     // follow-ups
     due.sort((a, b) => (a.nextDate < b.nextDate ? -1 : 1));
@@ -1114,15 +1187,40 @@
     if (await saveGuard(() => store.saveSettings(), 'Settings saved')) { closeSettings(); renderAll(); }
   });
 
+  /* ---------- editors ---------- */
+  function closeEditors() {
+    $('#sched-editor').hidden = true; $('#sched-wrap').hidden = false;
+  }
+  function openScheduleEditor() {
+    $('#sched-text').value = scheduleToText(track(), state.settings.schedule);
+    $('#sched-wrap').hidden = true; $('#sched-editor').hidden = false; $('#sched-text').focus();
+  }
+  async function saveSchedule() {
+    let parsed;
+    try { parsed = parseScheduleText($('#sched-text').value); } catch (e) { toast(e.message); return; }
+    // Days identical to the track's stay with the track, so a later track update still reaches them.
+    const tr = track();
+    Object.keys(parsed).forEach(k => { if (k !== 'weekday' && sameBlocks(parsed[k], trackDay(tr, DAY_KEYS.indexOf(k)))) delete parsed[k]; });
+    const value = Object.keys(parsed).length ? parsed : null;
+    if (await saveGuard(() => store.saveSettings({ schedule: value }), value ? 'Schedule saved' : 'Same as the track — nothing custom to save')) { closeEditors(); renderToday(); }
+  }
+  async function resetSchedule() {
+    if (await saveGuard(() => store.saveSettings({ schedule: null }), 'Back to the track schedule')) { closeEditors(); renderToday(); }
+  }
+
   /* ---------- global events ---------- */
   document.addEventListener('click', ev => {
     const t = ev.target.closest('[data-tab],[data-action],[data-edit],[data-edit-company],[data-filter],[data-toggle-week]');
     if (!t) { if (!pop.hidden && !ev.target.closest('#settings-pop') && !setBtn.contains(ev.target)) closeSettings(); return; }
-    if (t.dataset.tab) { renderTab(t.dataset.tab); window.scrollTo({ top: 0 }); return; }
+    if (t.dataset.tab) { closeEditors(); renderTab(t.dataset.tab); window.scrollTo({ top: 0 }); return; }
     if (t.dataset.action === 'add-app') return openApp(null);
     if (t.dataset.action === 'add-company') return openCompany(null);
     if (t.dataset.action === 'close-drawer') return closeDrawer();
     if (t.dataset.action === 'goto-study') { renderTab('study'); window.scrollTo({ top: 0 }); return; }
+    if (t.dataset.action === 'edit-schedule') return openScheduleEditor();
+    if (t.dataset.action === 'cancel-schedule') return closeEditors();
+    if (t.dataset.action === 'save-schedule') return saveSchedule();
+    if (t.dataset.action === 'reset-schedule') return resetSchedule();
     if (t.dataset.edit) return openApp(t.dataset.edit);
     if (t.dataset.editCompany) return openCompany(t.dataset.editCompany);
     if (t.dataset.filter) { state.filter = t.dataset.filter; renderApps(); return; }

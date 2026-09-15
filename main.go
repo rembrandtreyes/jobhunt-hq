@@ -67,9 +67,10 @@ type Company struct {
 }
 
 type Settings struct {
-	StartDate  string `json:"startDate,omitempty"`
-	WeeklyGoal int    `json:"weeklyGoal,omitempty"`
-	Track      string `json:"track,omitempty"` // study track: general | engineering
+	StartDate  string          `json:"startDate,omitempty"`
+	WeeklyGoal int             `json:"weeklyGoal,omitempty"`
+	Track      string          `json:"track,omitempty"`    // study track id, one of tracks/*.json
+	Schedule   json.RawMessage `json:"schedule,omitempty"` // the user's own day, see customize.go; null clears
 }
 
 type State struct {
@@ -292,6 +293,8 @@ func (s *server) loadState() (*State, error) {
 			st.Settings.WeeklyGoal, _ = strconv.Atoi(v)
 		case "track":
 			st.Settings.Track = v
+		case "schedule":
+			st.Settings.Schedule = json.RawMessage(v)
 		}
 	}
 	rows.Close()
@@ -517,6 +520,11 @@ func (s *server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		httpError(w, 400, "unknown track "+in.Track)
 		return
 	}
+	custom, err := validateCustom(in)
+	if err != nil {
+		httpError(w, 400, err.Error())
+		return
+	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		httpError(w, 500, err.Error())
@@ -544,6 +552,10 @@ func (s *server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 			httpError(w, 500, err.Error())
 			return
 		}
+	}
+	if err := applyCustom(tx, custom); err != nil {
+		httpError(w, 500, err.Error())
+		return
 	}
 	if err := tx.Commit(); err != nil {
 		httpError(w, 500, err.Error())
@@ -593,6 +605,11 @@ func (s *server) handleImport(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Settings.Track != "" && !s.tracks.has(in.Settings.Track) {
 		httpError(w, 400, "settings.track: unknown track "+in.Settings.Track)
+		return
+	}
+	custom, err := validateCustom(in.Settings)
+	if err != nil {
+		httpError(w, 400, "settings."+err.Error())
 		return
 	}
 
@@ -664,6 +681,10 @@ func (s *server) handleImport(w http.ResponseWriter, r *http.Request) {
 			httpError(w, 500, err.Error())
 			return
 		}
+	}
+	if err := applyCustom(tx, custom); err != nil {
+		httpError(w, 500, err.Error())
+		return
 	}
 	if err := tx.Commit(); err != nil {
 		httpError(w, 500, err.Error())

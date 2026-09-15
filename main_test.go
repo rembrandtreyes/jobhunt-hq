@@ -84,6 +84,12 @@ func seedCompanyCount(t *testing.T) int {
 	return len(seed.Companies)
 }
 
+// sameSettings compares the scalar settings plus the raw customization
+// bytes (Settings holds json.RawMessage, so == does not compile).
+func sameSettings(a, b Settings) bool {
+	return a.StartDate == b.StartDate && a.WeeklyGoal == b.WeeklyGoal && a.Track == b.Track && bytes.Equal(a.Schedule, b.Schedule)
+}
+
 func app(company, role, status string) Application {
 	return Application{Company: company, Role: role, Status: status}
 }
@@ -254,7 +260,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 	if rec := do(t, h, "PUT", "/api/settings", Settings{StartDate: "2026-09-01", WeeklyGoal: 15}); rec.Code != 204 {
 		t.Fatalf("PUT /api/settings: %d %s", rec.Code, rec.Body)
 	}
-	if st := getState(t, h); st.Settings != (Settings{StartDate: "2026-09-01", WeeklyGoal: 15}) {
+	if st := getState(t, h); !sameSettings(st.Settings, Settings{StartDate: "2026-09-01", WeeklyGoal: 15}) {
 		t.Fatalf("settings = %+v", st.Settings)
 	}
 
@@ -262,7 +268,7 @@ func TestSettingsRoundTrip(t *testing.T) {
 	if rec := do(t, h, "PUT", "/api/settings", Settings{WeeklyGoal: 7}); rec.Code != 204 {
 		t.Fatalf("partial PUT: %d %s", rec.Code, rec.Body)
 	}
-	if st := getState(t, h); st.Settings != (Settings{StartDate: "2026-09-01", WeeklyGoal: 7}) {
+	if st := getState(t, h); !sameSettings(st.Settings, Settings{StartDate: "2026-09-01", WeeklyGoal: 7}) {
 		t.Fatalf("settings after partial update = %+v", st.Settings)
 	}
 
@@ -331,7 +337,7 @@ func TestImportMergesExportShape(t *testing.T) {
 	if !st.Done["w1-resume"] || st.Done["w1-linkedin"] {
 		t.Fatalf("done = %v", st.Done)
 	}
-	if st.Settings != (Settings{StartDate: "2026-09-01", WeeklyGoal: 12}) {
+	if st.Settings.StartDate != "2026-09-01" || st.Settings.WeeklyGoal != 12 || st.Settings.Track != "" || st.Settings.Schedule != nil {
 		t.Fatalf("settings = %+v", st.Settings)
 	}
 	events := func() int {
