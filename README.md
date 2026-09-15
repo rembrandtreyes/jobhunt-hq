@@ -1,46 +1,63 @@
-# Job Hunt HQ — local edition
+# Job Hunt HQ
 
-The same page as the hosted artifact, served by a single Go binary with everything stored in a SQLite file. No cgo, no npm, no external services. The SQLite driver is pure Go ([ncruces/go-sqlite3](https://github.com/ncruces/go-sqlite3), SQLite compiled to WASM).
+A job-search command center you run on your own machine. One small Go binary serves a single page and keeps everything in a SQLite file you own. No accounts, no cloud, no npm, no cgo.
 
-## Run
+![Job Hunt HQ — the Today tab](docs/screenshot.png)
 
-Requires Go 1.23 or newer.
+## Why
+
+A job search is a pipeline with a deadline. Spreadsheets lose the follow-ups, note apps lose the structure, and hosted trackers own your data. Job Hunt HQ is the middle ground: a focused page that opens every morning, tells you what is due, tracks every application through the pipeline, and keeps the whole thing in a database you can query with `sqlite3`.
+
+## What you get
+
+Four tabs on one page:
+
+- **Today** — day and week counter for your search, weekly stats (applied vs. goal, pipeline, interviewing, follow-ups due), a weekday block schedule, and this week's study focus.
+- **Applications** — the tracker. Each application moves through `saved → applied → screen → technical → onsite → offer` (or `rejected` / `withdrawn`), and every status change is logged so you can see which sources actually convert.
+- **Study plan** — an 8-week checklist for interview prep (algorithms, system design, behavioral). Progress is saved per item.
+- **Companies** — your target list with A/B/C priority, why each one fits, a careers link, and the latest hiring signal.
+
+Everything is stored locally. Export a JSON backup any time.
+
+## Quick start
+
+Requires [Go](https://go.dev/dl/) 1.24 or newer.
 
 ```sh
-go mod tidy      # first time only: downloads the SQLite driver
-go run .         # → http://127.0.0.1:8787   (creates hq.db next to the binary)
+git clone https://github.com/<you>/jobhunt-hq
+cd jobhunt-hq
+go run .          # → http://127.0.0.1:8787   (creates hq.db in the current directory)
 ```
 
-Or build once and keep it around:
+Or build once and keep the binary around:
 
 ```sh
 go build -o hq .
 ./hq -db ~/jobhunt/hq.db -addr 127.0.0.1:8787
 ```
 
-The first run seeds the database from `seed.json` — the 28 researched target companies — and never touches existing rows after that. Delete `hq.db` to start over.
+Flags:
 
-Flags: `-db` (path to the database file, default `hq.db`), `-addr` (listen address, default `127.0.0.1:8787` — keep it on localhost; there is no auth).
+| flag | default | meaning |
+|---|---|---|
+| `-db` | `hq.db` | path to the SQLite database file (created on first run) |
+| `-addr` | `127.0.0.1:8787` | listen address |
 
-## Layout
+The server has **no authentication** and is meant for one person on one machine. Keep it bound to localhost.
 
-```
-main.go          HTTP server + SQLite schema + REST API + seeding
-web/index.html   the page (embedded into the binary at build time)
-seed.json        first-run data
-```
+## Make it yours
 
-Rebuild after editing `web/index.html`; the file is embedded with `go:embed`.
+- **Target companies** — the first run seeds the Companies tab from `seed.json`. Edit that file before your first run (or just delete `hq.db` and re-run) to start from your own list. Seeding never overwrites rows that already exist.
+- **Start date and weekly goal** — set them from the gear icon in the top right. The day/week counter and the "applied this week" bar are computed from these.
+- **Study plan and daily schedule** — the `PLAN`, `SCHEDULE`, and `WEEKEND` arrays near the top of the script in `web/index.html`. Study item ids are the keys in `study_progress`, so add new ones rather than renaming. Rebuild after editing; the page is embedded into the binary at compile time.
 
-## Database
+## Your data
 
 `hq.db` is an ordinary SQLite database (WAL mode). Open it with anything:
 
 ```sh
 sqlite3 hq.db
 ```
-
-Tables:
 
 | table | what |
 |---|---|
@@ -79,6 +96,10 @@ WHERE next_date <> '' AND next_date <= date('now') AND status NOT IN ('rejected'
 ORDER BY next_date;
 ```
 
+### Backup
+
+`cp hq.db hq-$(date +%F).db` while the server is stopped, or `curl -o backup.json localhost:8787/api/export` any time.
+
 ## API
 
 All JSON. The page is the only client, but nothing stops a script from using it.
@@ -87,13 +108,40 @@ All JSON. The page is the only client, but nothing stops a script from using it.
 |---|---|---|
 | GET | `/api/state` | — → `{apps, companies, done, settings}` |
 | GET | `/api/export` | same as state, served as a download (backup) |
-| PUT | `/api/applications/{id}` | application object (see `Application` in main.go); upsert |
-| DELETE | `/api/applications/{id}` | — |
+| PUT | `/api/applications/{id}` | application object (see `Application` in `main.go`); upsert |
+| DELETE | `/api/applications/{id}` | — (also removes its events) |
 | PUT | `/api/companies/{id}` | company object; upsert |
 | DELETE | `/api/companies/{id}` | — |
 | PUT | `/api/study` | `{"done": {"w1-resume": true, ...}}` — replaces the full set |
 | PUT | `/api/settings` | `{"startDate": "YYYY-MM-DD", "weeklyGoal": 20}` |
 
-## Backup
+Ids are client-generated and match `^[A-Za-z0-9_-]{1,64}$`. Timestamps are server-set RFC3339 UTC; dates you enter are plain `YYYY-MM-DD`.
 
-`cp hq.db hq-$(date +%F).db` while the server is stopped, or `curl -o backup.json localhost:8787/api/export` any time. To move data back into the hosted artifact, the export JSON has the same field names the artifact's database uses.
+## How it is built
+
+```
+main.go          HTTP server, SQLite schema, REST API, first-run seeding
+main_test.go     httptest suite against a temp-file database
+web/index.html   the whole UI — inline CSS + vanilla JS, no build step, embedded with go:embed
+seed.json        first-run data (never overwrites existing rows)
+```
+
+- SQLite via [ncruces/go-sqlite3](https://github.com/ncruces/go-sqlite3) — SQLite compiled to WebAssembly, so the binary is pure Go and cross-compiles anywhere. No cgo.
+- Real columns rather than JSON blobs, so the database stays hand-queryable.
+- One connection, WAL mode, `busy_timeout` set. Plenty for one person.
+
+## Development
+
+```sh
+go test ./...                    # run the test suite
+go vet ./... && gofmt -l .       # both must be clean before committing
+go build -o hq .                 # rebuild after editing web/index.html
+```
+
+CI (`.github/workflows/ci.yml`) runs `go vet`, `gofmt -l`, `go build`, and `go test` on every push and pull request, using the Go version from `go.mod`.
+
+`hq.db*` is gitignored. Never commit a database.
+
+## Contributing
+
+Issues and pull requests are welcome. Keep changes small and in the spirit of the tool: single binary, single page, local first, no dependencies beyond the standard library and the SQLite driver.
