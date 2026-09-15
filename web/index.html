@@ -248,6 +248,14 @@
   .sched li.apply .w::before { content: ""; display: inline-block; width: 8px; height: 8px; border-radius: 2px; background: var(--info); margin-right: 8px; vertical-align: 1px; }
   .sched li.rest .w { color: var(--muted); font-weight: 500; }
   .panel-tools { display: flex; align-items: center; gap: 10px; }
+  .steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .steps li { display: flex; align-items: center; gap: 12px; }
+  .steps .mark { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--line); display: grid; place-items: center; font-size: 12px; flex: 0 0 22px; color: transparent; }
+  .steps li.done .mark { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .steps .txt { flex: 1; }
+  .steps li.done .txt { color: var(--muted); text-decoration: line-through; }
+  .openings-note { margin: 8px 0 0; font-size: 13px; color: var(--muted); }
+  .tbl .role a { font-weight: 600; }
   .editor { display: grid; gap: 10px; }
   .editor .hint { font-size: 13px; color: var(--muted); }
   .editor .hint code { font-family: var(--mono); font-size: 12px; background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
@@ -439,6 +447,17 @@
 
     <div class="stats" id="stats"></div>
 
+    <div class="panel" id="start-card" hidden>
+      <div class="panel-h">
+        <h3>Getting started</h3>
+        <span class="panel-tools">
+          <span class="label" id="start-count"></span>
+          <button class="btn btn-ghost btn-sm" type="button" data-action="skip-start">Skip for now</button>
+        </span>
+      </div>
+      <div class="panel-b"><ol class="steps" id="start-steps"></ol></div>
+    </div>
+
     <div class="cols">
       <div class="stack">
         <div class="panel">
@@ -576,6 +595,27 @@
         <p class="sub">Where you'd rather work, ranked. Priority A means you'd tailor everything and chase a referral.</p>
       </div>
       <button class="btn btn-primary" type="button" data-action="add-company">+ Add a company</button>
+    </div>
+
+    <div class="panel" id="openings-panel">
+      <div class="panel-h">
+        <h3>Search the boards</h3>
+        <span class="label" id="openings-status"></span>
+      </div>
+      <div class="panel-b">
+        <form class="toolbar" id="openings-form">
+          <div class="grow"><label class="sr" for="op-q">Role words</label><input type="search" id="op-q" placeholder="Role words — customer success manager, backend engineer, recruiter…"></div>
+          <div style="flex: 0 1 240px"><label class="sr" for="op-loc">Location words</label><input type="search" id="op-loc" placeholder="Location — remote, phoenix, new york"></div>
+          <button class="btn btn-primary" type="submit" id="op-go">Search</button>
+        </form>
+        <p class="openings-note" id="openings-note">Every open role on these companies' boards, in every function. All the role words must appear in the title; any one location word is enough.</p>
+        <div class="tbl-wrap" id="openings-wrap" hidden style="margin-top:12px">
+          <table class="tbl" id="openings-table">
+            <thead><tr><th>Company</th><th>Role</th><th>Location</th><th>Posted</th><th></th></tr></thead>
+            <tbody id="openings-body"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <div class="tbl-wrap">
@@ -864,6 +904,7 @@
       state.companies = Array.isArray(s.companies) ? s.companies : [];
       state.done = s.done && typeof s.done === 'object' ? s.done : {};
       if (s.settings) { if (s.settings.startDate) state.settings.startDate = s.settings.startDate; if (s.settings.weeklyGoal) state.settings.weeklyGoal = s.settings.weeklyGoal; if (TRACKS[s.settings.track]) state.settings.track = s.settings.track; }
+      state.settings.trackSet = !!(s.settings && TRACKS[s.settings.track]);
       state.settings.schedule = s.settings && s.settings.schedule && typeof s.settings.schedule === 'object' ? s.settings.schedule : null;
       state.settings.focus = s.settings && s.settings.focus && typeof s.settings.focus === 'object' ? s.settings.focus : null;
       if (!(s.settings && TRACKS[s.settings.track]) && TRACKS.engineering && Object.keys(state.done).some(id => /^w\d/.test(id) && state.done[id])) state.settings.track = 'engineering';
@@ -975,6 +1016,21 @@
       stat('In pipeline', active, 'Applied, screens, technicals, onsites') +
       stat('Interviewing', interviews, 'Screens and loops in progress') +
       stat('Follow-ups due', due.length, due.length ? 'Next step date is today or earlier' : 'Nothing overdue', null, due.length > 0);
+
+    // first run: three steps until the first application is logged
+    const steps = [
+      { done: !!state.settings.startDate, txt: 'Set your search start date', action: 'open-settings-start', btn: 'Set date' },
+      { done: !!state.settings.trackSet, txt: 'Pick your study track', action: 'open-settings-track', btn: 'Pick track' },
+      { done: state.apps.length > 0, txt: 'Log your first application, or find one on the Companies tab', action: 'add-app', btn: 'Log one' }
+    ];
+    const showStart = state.loaded && state.mode === 'db' && !state.apps.length && !startSkipped();
+    $('#start-card').hidden = !showStart;
+    if (showStart) {
+      $('#start-count').textContent = steps.filter(s => s.done).length + ' of 3';
+      $('#start-steps').innerHTML = steps.map(s =>
+        '<li class="' + (s.done ? 'done' : '') + '"><span class="mark">✓</span><span class="txt">' + esc(s.txt) + '</span>' +
+        (s.done ? '' : '<button class="btn btn-ghost btn-sm" type="button" data-action="' + s.action + '">' + esc(s.btn) + '</button>') + '</li>').join('');
+    }
 
     // schedule: the user's own blocks when saved, else the track's day
     const tr = track();
@@ -1113,6 +1169,7 @@
   }
 
   function renderCompanies() {
+    renderOpenings();
     const body = $('#companies-body');
     if (!state.companies.length) {
       body.innerHTML = '<tr class="empty-row"><td colspan="6">No companies yet. Add the ones you would be excited to work for — this list is also where researched targets land once your resume has been reviewed.</td></tr>';
@@ -1130,6 +1187,52 @@
       '<td class="act"><button class="btn btn-ghost btn-sm" type="button" data-edit-company="' + esc(c.id) + '">Edit</button></td>' +
       '</tr>').join('');
   }
+
+  /* ---------- first run ---------- */
+  function startSkipped() { try { return localStorage.getItem('hq-start-skipped') === '1'; } catch (e) { return false; } }
+  function skipStart() { try { localStorage.setItem('hq-start-skipped', '1'); } catch (e) { /* no storage: the card simply stays until the first application */ } renderToday(); }
+
+  /* ---------- openings search ---------- */
+  const openings = { rows: [], meta: null };
+  function sinceLabel(ts) {
+    const m = Math.round((Date.now() - new Date(ts).getTime()) / 60000);
+    return m < 1 ? 'just now' : m < 60 ? m + ' min ago' : Math.round(m / 60) + ' h ago';
+  }
+  async function searchOpenings(refresh) {
+    const q = $('#op-q').value.trim(), loc = $('#op-loc').value.trim();
+    $('#op-go').disabled = true; $('#openings-status').textContent = 'searching every board…';
+    try {
+      openings.meta = await api('GET', '/api/openings?q=' + encodeURIComponent(q) + '&loc=' + encodeURIComponent(loc) + (refresh ? '&refresh=1' : ''));
+      openings.rows = openings.meta.openings || [];
+    } catch (e) { toast('Search failed' + (e && e.message ? ': ' + e.message : '')); openings.meta = null; openings.rows = []; }
+    $('#op-go').disabled = false;
+    renderOpenings();
+  }
+  function renderOpenings() {
+    const m = openings.meta;
+    $('#openings-wrap').hidden = !m;
+    if (!m) { $('#openings-status').textContent = state.companies.filter(c => c.sourceUrl).length + ' boards'; return; }
+    const failed = m.failed || [];
+    $('#openings-status').innerHTML = esc(m.boards + ' boards searched') +
+      (failed.length ? ' · <span title="' + esc(failed.map(f => f.company + ': ' + f.reason).join('\n')) + '">' + failed.length + ' failed</span>' : '') +
+      (m.cachedAt ? ' · as of ' + esc(sinceLabel(m.cachedAt)) : '') +
+      ' · <a href="#" data-action="refresh-openings">refresh</a>';
+    const known = new Set(state.apps.map(a => a.url).filter(Boolean));
+    $('#openings-body').innerHTML = (openings.rows.length ? openings.rows.map((o, i) =>
+      '<tr><td class="co"><b>' + esc(o.company) + '</b></td>' +
+      '<td class="role"><a class="link-out" href="' + esc(o.url) + '" target="_blank" rel="noopener">' + esc(o.title) + ' ↗</a></td>' +
+      '<td>' + esc(o.location || '—') + '</td><td class="date">' + esc(o.posted || '') + '</td>' +
+      '<td class="act">' + (known.has(o.url) ? '<span class="muted">In tracker</span>' : '<button class="btn btn-ghost btn-sm" type="button" data-save-opening="' + i + '">Save</button>') + '</td></tr>').join('')
+      : '<tr class="empty-row"><td colspan="5">No openings match. Try fewer role words, or a different location.</td></tr>') +
+      (m.truncated ? '<tr class="empty-row"><td colspan="5">Showing the first 500. Add a role word to narrow it down.</td></tr>' : '');
+  }
+  async function saveOpening(i) {
+    const o = openings.rows[i]; if (!o) return;
+    const now = new Date().toISOString();
+    const app = { id: newId('a'), company: o.company, role: o.title, url: o.url, status: 'saved', source: 'Job board', location: o.location || '', salary: '', appliedAt: '', nextDate: iso(addDays(new Date(), 2)), nextAction: 'Apply', contact: '', notes: '', createdAt: now, updatedAt: now };
+    if (await saveGuard(() => store.saveApp(app), 'Saved to your tracker — apply by ' + fmt(app.nextDate))) renderOpenings();
+  }
+  $('#openings-form').addEventListener('submit', ev => { ev.preventDefault(); searchOpenings(false); });
 
   /* ---------- drawer ---------- */
   const drawer = $('#drawer'), appForm = $('#app-form'), coForm = $('#company-form');
@@ -1292,13 +1395,18 @@
 
   /* ---------- global events ---------- */
   document.addEventListener('click', ev => {
-    const t = ev.target.closest('[data-tab],[data-action],[data-edit],[data-edit-company],[data-filter],[data-toggle-week]');
+    const t = ev.target.closest('[data-tab],[data-action],[data-edit],[data-edit-company],[data-filter],[data-toggle-week],[data-save-opening]');
     if (!t) { if (!pop.hidden && !ev.target.closest('#settings-pop') && !setBtn.contains(ev.target)) closeSettings(); return; }
     if (t.dataset.tab) { closeEditors(); renderTab(t.dataset.tab); window.scrollTo({ top: 0 }); return; }
     if (t.dataset.action === 'add-app') return openApp(null);
     if (t.dataset.action === 'add-company') return openCompany(null);
     if (t.dataset.action === 'close-drawer') return closeDrawer();
     if (t.dataset.action === 'goto-study') { renderTab('study'); window.scrollTo({ top: 0 }); return; }
+    if (t.dataset.action === 'skip-start') return skipStart();
+    if (t.dataset.action === 'open-settings-start') { openSettings(); return; }
+    if (t.dataset.action === 'open-settings-track') { openSettings(); $('#set-track').focus(); return; }
+    if (t.dataset.action === 'refresh-openings') { ev.preventDefault(); return searchOpenings(true); }
+    if (t.dataset.saveOpening != null) return saveOpening(+t.dataset.saveOpening);
     if (t.dataset.action === 'edit-schedule') return openScheduleEditor();
     if (t.dataset.action === 'cancel-schedule') return closeEditors();
     if (t.dataset.action === 'save-schedule') return saveSchedule();

@@ -31,6 +31,9 @@ var indexHTML []byte
 //go:embed seed.json
 var seedJSON []byte
 
+// version is set by GoReleaser at release time (-X main.version=…).
+var version = "dev"
+
 // ---------- types (field names match the page's JSON) ----------
 
 type Application struct {
@@ -138,21 +141,28 @@ CREATE TABLE IF NOT EXISTS settings (
 
 type server struct {
 	db     *sql.DB
-	tracks *trackSet // study tracks from tracks/*.json, validated at startup
-	page   []byte    // web/index.html with the tracks JSON injected
+	tracks *trackSet  // study tracks from tracks/*.json, validated at startup
+	page   []byte     // web/index.html with the tracks JSON injected
+	feeds  *feedCache // job-board feeds for GET /api/openings, see openings.go
 }
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:8787", "address to listen on")
 	dbPath := flag.String("db", "hq.db", "path to the SQLite database file (created on first run)")
+	showVersion := flag.Bool("version", false, "print the version and exit")
 	flag.Parse()
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
 
 	s, err := newServer(*dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	log.Printf("Job Hunt HQ  →  http://%s   (database: %s)", *addr, *dbPath)
+	log.Printf("Job Hunt HQ %s  →  http://%s   (database: %s)", version, *addr, *dbPath)
+	go s.warm(s.db) // fill the openings cache so the first search is instant
 	log.Fatal(http.ListenAndServe(*addr, logRequests(s.routes())))
 }
 
@@ -176,7 +186,7 @@ func newServerFS(dbPath string, fsys fs.FS) (*server, error) {
 		db.Close()
 		return nil, fmt.Errorf("schema: %w", err)
 	}
-	s := &server{db: db, tracks: tracks, page: renderPage(indexHTML, tracks)}
+	s := &server{db: db, tracks: tracks, page: renderPage(indexHTML, tracks), feeds: newFeedCache(&http.Client{Timeout: feedTimeout + 5*time.Second})}
 	if err := s.seedIfEmpty(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("seed: %w", err)
@@ -196,6 +206,7 @@ func (s *server) routes() http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(s.tracks.json)
 	})
+	mux.HandleFunc("GET /api/openings", s.handleOpenings)
 	mux.HandleFunc("GET /api/state", s.handleState)
 	mux.HandleFunc("GET /api/export", s.handleState)
 	mux.HandleFunc("PUT /api/applications/{id}", s.handlePutApplication)
