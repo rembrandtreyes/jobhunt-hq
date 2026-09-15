@@ -45,7 +45,7 @@ The server has **no authentication** and is meant for one person on one machine.
 
 ## What's seeded on first run
 
-The first run loads `seed.json`: **41 companies that are hiring software, backend, frontend, and DevOps/SRE engineers**, chosen because their job boards (Greenhouse, Lever, or Ashby) expose a public feed. For each one:
+The first run loads `seed.json`: **41 companies that were hiring software, backend, frontend, and DevOps/SRE engineers on 2026-09-15**, chosen because their job boards (Greenhouse, Lever, or Ashby) expose a public feed. It is sample data generated from those feeds, not anyone's application list, and the counts go stale. For each one:
 
 - **Priority** A / B / C is set by how many engineering roles were open on 2026-09-15 (A = 100 or more, B = 20 or more, C = fewer). Re-rank them for yourself; it's your list.
 - **Why** and **Signal** summarize that day's board: how many engineering roles, how many remote, the most-listed location.
@@ -60,6 +60,8 @@ Seeding never overwrites rows that already exist. To start from your own list, e
 > find senior backend and devops roles, remote or Phoenix
 
 It reads every company's live feed, filters by your titles and location, skips postings you already have, shows you a table, and saves the ones you pick as `saved` applications with a follow-up date. Name a company that isn't in your list and it will look for that company's board and offer to add it.
+
+The skill is just a markdown file. If you don't use Claude Code, ignore or delete the `.claude/` directory; nothing else depends on it.
 
 **Without Claude.** Every company's careers link opens its board. Each row's feed URL is also plain JSON you can read from a terminal; for a Greenhouse board:
 

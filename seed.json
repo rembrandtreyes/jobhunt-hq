@@ -1,4 +1,5 @@
 {
+  "_note": "Sample data generated from public Greenhouse/Lever/Ashby job-board feeds on 2026-09-15. It is a starting set of engineering employers, not anyone's application list. Counts go stale; refresh them with the find-jobs skill or edit freely.",
   "companies": [
     {
       "id": "databricks",
