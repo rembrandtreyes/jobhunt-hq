@@ -1,0 +1,52 @@
+# GoReleaser: `git tag v0.1.0 && git push origin v0.1.0` builds the binaries
+# in CI (.github/workflows/release.yml) and attaches them to a GitHub release.
+# Try it locally without publishing:
+#   go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean
+version: 2
+
+project_name: hq
+
+builds:
+  - id: hq
+    binary: hq
+    main: .
+    env:
+      - CGO_ENABLED=0 # the SQLite driver is pure Go (WASM), so every target cross-compiles
+    goos: [darwin, linux, windows]
+    goarch: [amd64, arm64]
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    name_template: "hq_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - README.md
+      - LICENSE
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  use: git
+  sort: asc
+  filters:
+    exclude:
+      - "^Docs:"
+      - "^docs:"
+      - "^ci:"
+
+release:
+  name_template: "v{{ .Version }}"
+  footer: |
+    **Run it:** unzip, then run `hq` and open http://127.0.0.1:8787. It creates `hq.db` next to itself.
+
+    macOS blocks unsigned downloads once: `xattr -d com.apple.quarantine ./hq` (or right-click → Open). Windows SmartScreen: More info → Run anyway. Details in the README.
