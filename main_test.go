@@ -87,7 +87,7 @@ func seedCompanyCount(t *testing.T) int {
 // sameSettings compares the scalar settings plus the raw customization
 // bytes (Settings holds json.RawMessage, so == does not compile).
 func sameSettings(a, b Settings) bool {
-	return a.StartDate == b.StartDate && a.WeeklyGoal == b.WeeklyGoal && a.Track == b.Track && bytes.Equal(a.Schedule, b.Schedule)
+	return a.StartDate == b.StartDate && a.WeeklyGoal == b.WeeklyGoal && a.Track == b.Track && bytes.Equal(a.Schedule, b.Schedule) && bytes.Equal(a.Focus, b.Focus)
 }
 
 func app(company, role, status string) Application {
@@ -337,7 +337,7 @@ func TestImportMergesExportShape(t *testing.T) {
 	if !st.Done["w1-resume"] || st.Done["w1-linkedin"] {
 		t.Fatalf("done = %v", st.Done)
 	}
-	if st.Settings.StartDate != "2026-09-01" || st.Settings.WeeklyGoal != 12 || st.Settings.Track != "" || st.Settings.Schedule != nil {
+	if st.Settings.StartDate != "2026-09-01" || st.Settings.WeeklyGoal != 12 || st.Settings.Track != "" || st.Settings.Schedule != nil || st.Settings.Focus != nil {
 		t.Fatalf("settings = %+v", st.Settings)
 	}
 	events := func() int {

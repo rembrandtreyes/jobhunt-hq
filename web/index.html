@@ -477,9 +477,22 @@
         <div class="panel focus">
           <div class="panel-h">
             <h3 id="focus-title">This week's focus</h3>
-            <button class="btn btn-ghost btn-sm" type="button" data-action="goto-study">Open plan →</button>
+            <span class="panel-tools">
+              <button class="btn btn-ghost btn-sm" type="button" data-action="edit-focus" title="Rename the labels or rewrite the lines">Edit</button>
+              <button class="btn btn-ghost btn-sm" type="button" data-action="goto-study">Open plan →</button>
+            </span>
           </div>
           <div class="panel-b" id="focus"></div>
+          <div class="panel-b editor" id="focus-editor" hidden>
+            <p class="hint">Under <code># Labels</code>, one label per line — these are the row names. Under <code># Week 1</code> … <code># Week 8</code>, one line per label. A week you leave out keeps the track's lines.</p>
+            <textarea id="focus-text" spellcheck="false" aria-label="Week focus, one line per label"></textarea>
+            <div class="actions">
+              <button class="btn btn-ghost btn-sm" type="button" data-action="reset-focus">Reset to track default</button>
+              <span class="spacer"></span>
+              <button class="btn btn-ghost btn-sm" type="button" data-action="cancel-focus">Cancel</button>
+              <button class="btn btn-primary btn-sm" type="button" data-action="save-focus">Save</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -753,6 +766,43 @@
     if (!Object.keys(out).length) throw new Error('Nothing to save. Start with a day heading such as "# Weekdays".');
     return out;
   }
+  // Week focus: settings.focus is {labels?: [..], weeks?: {"1": [..]}}; whatever is missing comes from the track.
+  function resolveFocus(tr, custom, w) {
+    const labels = custom && custom.labels && custom.labels.length ? custom.labels : (tr.focusLabels || []);
+    const lines = custom && custom.weeks && custom.weeks[w.n] ? custom.weeks[w.n] : (w.focus || []);
+    return { labels, lines, custom: !!(custom && ((custom.labels && custom.labels.length) || (custom.weeks && custom.weeks[w.n]))) };
+  }
+  const focusRows = (labels, lines) => labels.map((l, i) => '<dt>' + esc(l) + '</dt><dd>' + esc(lines[i] || '') + '</dd>').join('');
+  const sameLines = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
+  function focusToText(tr, custom) {
+    const plan = tr.plan || [];
+    const labels = resolveFocus(tr, custom, plan[0] || { n: 1, focus: [] }).labels;
+    return '# Labels\n' + labels.join('\n') + '\n\n' + plan.map(w => '# Week ' + w.n + ' — ' + w.theme + '\n' + resolveFocus(tr, custom, w).lines.join('\n')).join('\n\n') + '\n';
+  }
+  // Text → {labels, weeks}. Throws an Error that names the line.
+  function parseFocusText(text) {
+    const out = { labels: [], weeks: {} }; let key = null;
+    String(text).split('\n').forEach((raw, i) => {
+      const line = raw.trim(); if (!line) return;
+      const at = 'Line ' + (i + 1) + ': ';
+      if (line[0] === '#') {
+        const name = line.replace(/^#+\s*/, '').trim();
+        if (/^labels?\b/i.test(name)) { key = 'labels'; return; }
+        const m = /^week\s+(\d{1,2})\b/i.exec(name);
+        if (!m || +m[1] < 1 || +m[1] > 12) throw new Error(at + 'headings are "# Labels" or "# Week 1" … "# Week 12".');
+        key = String(+m[1]); out.weeks[key] = out.weeks[key] || []; return;
+      }
+      if (!key) throw new Error(at + 'start with "# Labels" or "# Week 1".');
+      if (line.length > (key === 'labels' ? 40 : 300)) throw new Error(at + 'too long (labels ≤ 40, lines ≤ 300 characters).');
+      const list = key === 'labels' ? out.labels : out.weeks[key];
+      if (list.length >= 6) throw new Error(at + 'more than 6 ' + (key === 'labels' ? 'labels' : 'lines in one week') + '.');
+      list.push(line);
+    });
+    if (!out.labels.length) delete out.labels;
+    if (!Object.keys(out.weeks).length) delete out.weeks;
+    if (!out.labels && !out.weeks) throw new Error('Nothing to save. Start with "# Labels" or "# Week 1".');
+    return out;
+  }
   /* ---------- /customization ---------- */
 
   const EXAMPLES = (() => {
@@ -769,7 +819,7 @@
   const state = {
     tab: 'today',
     apps: [], companies: [], done: {},
-    settings: { startDate: '', weeklyGoal: 20, track: DEFAULT_TRACK, schedule: null },
+    settings: { startDate: '', weeklyGoal: 20, track: DEFAULT_TRACK, schedule: null, focus: null },
     mode: 'local', loaded: false,
     filter: 'all', query: '',
     openWeeks: null
@@ -796,6 +846,7 @@
       state.done = s.done && typeof s.done === 'object' ? s.done : {};
       if (s.settings) { if (s.settings.startDate) state.settings.startDate = s.settings.startDate; if (s.settings.weeklyGoal) state.settings.weeklyGoal = s.settings.weeklyGoal; if (TRACKS[s.settings.track]) state.settings.track = s.settings.track; }
       state.settings.schedule = s.settings && s.settings.schedule && typeof s.settings.schedule === 'object' ? s.settings.schedule : null;
+      state.settings.focus = s.settings && s.settings.focus && typeof s.settings.focus === 'object' ? s.settings.focus : null;
       if (!(s.settings && TRACKS[s.settings.track]) && TRACKS.engineering && Object.keys(state.done).some(id => /^w\d/.test(id) && state.done[id])) state.settings.track = 'engineering';
       state.loaded = true; state.mode = 'db'; renderAll();
     },
@@ -933,10 +984,10 @@
 
     // focus
     const w = wi.week;
-    $('#focus-title').textContent = 'Week ' + w.n + ' focus: ' + w.theme;
-    const labels = track().focusLabels;
+    const fo = resolveFocus(tr, state.settings.focus, w);
+    $('#focus-title').textContent = 'Week ' + w.n + ' focus: ' + w.theme + (fo.custom ? ' · yours' : '');
     $('#focus').innerHTML =
-      '<dl style="padding-top:10px">' + labels.map((l, i) => '<dt>' + esc(l) + '</dt><dd>' + esc(w.focus[i]) + '</dd>').join('') + '</dl>' +
+      '<dl style="padding-top:10px">' + focusRows(fo.labels, fo.lines) + '</dl>' +
       '<div class="targets">' +
         w.targets.map(([l, n]) => '<span><b>' + (n || '—') + '</b>' + esc(l) + '</span>').join('') +
         '<span><b>' + weekDone(w) + '/' + w.items.length + '</b>checklist</span>' +
@@ -1011,6 +1062,7 @@
       const past = w.n < wi.week.n || wi.beyond;
       const open = state.openWeeks.has(w.n);
       const groups = tr.groups.filter(g => w.items.some(i => i.g === g));
+      const fo = resolveFocus(tr, state.settings.focus, w);
       return '<div class="week' + (isNow ? ' now' : '') + (past ? ' past' : '') + (open ? ' open' : '') + '" data-week="' + w.n + '">' +
         '<button class="week-h" type="button" data-toggle-week="' + w.n + '" aria-expanded="' + open + '">' +
           '<div class="k"><span class="label">Week ' + w.n + ' · ' + esc(weekRange(w.n)) + '</span>' + (isNow ? '<span class="now-tag">This week</span>' : '') + '</div>' +
@@ -1019,7 +1071,7 @@
           '<div class="meter"><i data-week-meter="' + w.n + '" style="width:' + pct + '%"></i></div>' +
         '</button>' +
         '<div class="week-b"' + (open ? '' : ' hidden') + '>' +
-          '<dl class="summary">' + tr.focusLabels.map((l, i) => '<dt>' + esc(l) + '</dt><dd>' + esc(w.focus[i]) + '</dd>').join('') + '</dl>' +
+          '<dl class="summary">' + focusRows(fo.labels, fo.lines) + '</dl>' +
           groups.map(g => '<div class="group"><h4>' + esc(g) + '</h4><ul class="items">' +
             w.items.filter(i => i.g === g).map(i => '<li><label for="chk-' + i.id + '"><input type="checkbox" id="chk-' + i.id + '" data-item="' + i.id + '"' + (state.done[i.id] ? ' checked' : '') + '><span>' + esc(i.t) + '</span></label></li>').join('') +
             '</ul></div>').join('') +
@@ -1190,6 +1242,27 @@
   /* ---------- editors ---------- */
   function closeEditors() {
     $('#sched-editor').hidden = true; $('#sched-wrap').hidden = false;
+    $('#focus-editor').hidden = true; $('#focus').hidden = false;
+  }
+  function openFocusEditor() {
+    $('#focus-text').value = focusToText(track(), state.settings.focus);
+    $('#focus').hidden = true; $('#focus-editor').hidden = false; $('#focus-text').focus();
+  }
+  async function saveFocus() {
+    let parsed;
+    try { parsed = parseFocusText($('#focus-text').value); } catch (e) { toast(e.message); return; }
+    // Labels and weeks identical to the track's stay with the track.
+    const tr = track();
+    if (parsed.labels && sameLines(parsed.labels, tr.focusLabels || [])) delete parsed.labels;
+    if (parsed.weeks) {
+      (tr.plan || []).forEach(w => { if (parsed.weeks[w.n] && sameLines(parsed.weeks[w.n], w.focus || [])) delete parsed.weeks[w.n]; });
+      if (!Object.keys(parsed.weeks).length) delete parsed.weeks;
+    }
+    const value = parsed.labels || parsed.weeks ? parsed : null;
+    if (await saveGuard(() => store.saveSettings({ focus: value }), value ? 'Focus saved' : 'Same as the track — nothing custom to save')) { closeEditors(); renderToday(); }
+  }
+  async function resetFocus() {
+    if (await saveGuard(() => store.saveSettings({ focus: null }), 'Back to the track focus')) { closeEditors(); renderToday(); }
   }
   function openScheduleEditor() {
     $('#sched-text').value = scheduleToText(track(), state.settings.schedule);
@@ -1221,6 +1294,10 @@
     if (t.dataset.action === 'cancel-schedule') return closeEditors();
     if (t.dataset.action === 'save-schedule') return saveSchedule();
     if (t.dataset.action === 'reset-schedule') return resetSchedule();
+    if (t.dataset.action === 'edit-focus') return openFocusEditor();
+    if (t.dataset.action === 'cancel-focus') return closeEditors();
+    if (t.dataset.action === 'save-focus') return saveFocus();
+    if (t.dataset.action === 'reset-focus') return resetFocus();
     if (t.dataset.edit) return openApp(t.dataset.edit);
     if (t.dataset.editCompany) return openCompany(t.dataset.editCompany);
     if (t.dataset.filter) { state.filter = t.dataset.filter; renderApps(); return; }

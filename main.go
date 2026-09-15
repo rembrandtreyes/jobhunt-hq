@@ -71,6 +71,7 @@ type Settings struct {
 	WeeklyGoal int             `json:"weeklyGoal,omitempty"`
 	Track      string          `json:"track,omitempty"`    // study track id, one of tracks/*.json
 	Schedule   json.RawMessage `json:"schedule,omitempty"` // the user's own day, see customize.go; null clears
+	Focus      json.RawMessage `json:"focus,omitempty"`    // the user's week focus labels/lines, see customize.go; null clears
 }
 
 type State struct {
@@ -295,6 +296,8 @@ func (s *server) loadState() (*State, error) {
 			st.Settings.Track = v
 		case "schedule":
 			st.Settings.Schedule = json.RawMessage(v)
+		case "focus":
+			st.Settings.Focus = json.RawMessage(v)
 		}
 	}
 	rows.Close()

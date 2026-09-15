@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"net/http"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"testing/quick"
@@ -195,6 +196,155 @@ func TestScheduleProperty_AcceptedAndCanonical(t *testing.T) {
 			return false
 		}
 		return reflect.DeepEqual(got, map[string][]block(s))
+	}
+	if err := quick.Check(prop, &quick.Config{MaxCount: 500}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// ---------- focus ----------
+
+var sampleFocus = focus{
+	Labels: []string{"Pipeline", "Story", "Practice"},
+	Weeks:  map[string][]string{"1": {"Twenty target accounts", "The 90-second intro", "Record three answers"}, "3": {}},
+}
+
+func TestFocusSettingStoreClearUntouched(t *testing.T) {
+	_, h := newTestServer(t)
+	if stateHasKey(t, h, "focus") {
+		t.Fatal("fresh db exposes a focus")
+	}
+	if rec := do(t, h, "PUT", "/api/settings", rawSettings(map[string]any{"focus": sampleFocus})); rec.Code != 204 {
+		t.Fatalf("PUT focus: %d %s", rec.Code, rec.Body)
+	}
+	var got focus
+	if err := json.Unmarshal(getState(t, h).Settings.Focus, &got); err != nil || !reflect.DeepEqual(got, sampleFocus) {
+		t.Fatalf("focus after PUT = %+v (err %v)", got, err)
+	}
+	if rec := do(t, h, "PUT", "/api/settings", rawSettings(map[string]any{"schedule": sampleSchedule})); rec.Code != 204 {
+		t.Fatalf("PUT schedule: %d %s", rec.Code, rec.Body)
+	}
+	st := getState(t, h)
+	if len(st.Settings.Focus) == 0 || len(st.Settings.Schedule) == 0 {
+		t.Fatalf("one customization clobbered the other: %+v", st.Settings)
+	}
+	if rec := do(t, h, "PUT", "/api/settings", rawSettings(map[string]any{"focus": nil})); rec.Code != 204 {
+		t.Fatalf("PUT focus null: %d %s", rec.Code, rec.Body)
+	}
+	if stateHasKey(t, h, "focus") || !stateHasKey(t, h, "schedule") {
+		t.Fatal("clearing focus did not leave exactly the schedule")
+	}
+}
+
+func TestFocusValidation(t *testing.T) {
+	_, h := newTestServer(t)
+	do(t, h, "PUT", "/api/settings", rawSettings(map[string]any{"focus": sampleFocus}))
+	before := getState(t, h).Settings.Focus
+
+	bad := []struct {
+		name string
+		body any
+		want string
+	}{
+		{"unknown key", map[string]any{"labels": []string{"A"}, "theme": "x"}, "unknown field"},
+		{"week 13", map[string]any{"weeks": map[string]any{"13": []string{"x"}}}, "must be 1 to 12"},
+		{"week 0", map[string]any{"weeks": map[string]any{"0": []string{"x"}}}, "must be 1 to 12"},
+		{"week 01", map[string]any{"weeks": map[string]any{"01": []string{"x"}}}, "must be 1 to 12"},
+		{"seven labels", map[string]any{"labels": []string{"a", "b", "c", "d", "e", "f", "g"}}, "more than 6 labels"},
+		{"empty label", map[string]any{"labels": []string{""}}, "label 1 must be"},
+		{"label too long", map[string]any{"labels": []string{strings.Repeat("l", 41)}}, "label 1 must be"},
+		{"line too long", map[string]any{"weeks": map[string]any{"2": []string{strings.Repeat("x", 301)}}}, "too long"},
+		{"seven lines", map[string]any{"weeks": map[string]any{"2": []string{"a", "b", "c", "d", "e", "f", "g"}}}, "more than 6 lines"},
+		{"week not an array", map[string]any{"weeks": map[string]any{"1": "x"}}, "focus:"},
+		{"empty object", map[string]any{}, "nothing to save"},
+		{"not an object", []string{"x"}, "focus:"},
+	}
+	for _, c := range bad {
+		rec := do(t, h, "PUT", "/api/settings", rawSettings(map[string]any{"focus": c.body}))
+		if rec.Code != 400 || !strings.Contains(rec.Body.String(), c.want) {
+			t.Errorf("%s: %d %s (want 400 containing %q)", c.name, rec.Code, rec.Body, c.want)
+		}
+	}
+	if after := getState(t, h).Settings.Focus; !bytes.Equal(before, after) {
+		t.Fatalf("a rejected focus changed the stored one:\n%s\n%s", before, after)
+	}
+	rec := do(t, h, "POST", "/api/import", map[string]any{"settings": map[string]any{"focus": map[string]any{"weeks": map[string]any{"13": []string{}}}}})
+	if rec.Code != 400 || !strings.Contains(rec.Body.String(), "settings.focus") {
+		t.Fatalf("import bad focus: %d %s", rec.Code, rec.Body)
+	}
+}
+
+func TestFocusSurvivesExportImport(t *testing.T) {
+	_, h1 := newTestServer(t)
+	do(t, h1, "PUT", "/api/settings", rawSettings(map[string]any{"focus": sampleFocus}))
+	exp := do(t, h1, "GET", "/api/export", nil)
+	_, h2 := newTestServer(t)
+	if rec := do(t, h2, "POST", "/api/import", json.RawMessage(exp.Body.Bytes())); rec.Code != 200 {
+		t.Fatalf("import: %d %s", rec.Code, rec.Body)
+	}
+	if a, b := getState(t, h1).Settings.Focus, getState(t, h2).Settings.Focus; !bytes.Equal(a, b) {
+		t.Fatalf("focus differs after round trip:\n%s\n%s", a, b)
+	}
+	if rec := do(t, h2, "POST", "/api/import", map[string]any{"settings": map[string]any{"focus": nil}}); rec.Code != 200 {
+		t.Fatalf("import null: %d %s", rec.Code, rec.Body)
+	}
+	if stateHasKey(t, h2, "focus") {
+		t.Fatal("import null did not clear the focus")
+	}
+}
+
+// validFocus generates focus overrides inside every cap.
+type validFocus focus
+
+func (validFocus) Generate(r *rand.Rand, _ int) reflect.Value {
+	var f validFocus
+	for len(f.Labels) == 0 && len(f.Weeks) == 0 {
+		if n := r.Intn(maxFocusLabels + 1); n > 0 {
+			f.Labels = make([]string, n)
+			for i := range f.Labels {
+				f.Labels[i] = "L" + randText(r, maxLabelRunes-1)
+			}
+		}
+		for w := 1; w <= maxFocusWeeks; w++ {
+			if r.Intn(4) != 0 {
+				continue
+			}
+			if f.Weeks == nil {
+				f.Weeks = map[string][]string{}
+			}
+			lines := make([]string, r.Intn(maxFocusLabels+1))
+			for i := range lines {
+				lines[i] = randText(r, maxLineRunes)
+			}
+			f.Weeks[strconv.Itoa(w)] = lines
+		}
+	}
+	return reflect.ValueOf(f)
+}
+
+func TestFocusProperty_AcceptedAndCanonical(t *testing.T) {
+	_, h := newTestServer(t)
+	prop := func(f validFocus) bool {
+		raw, _ := json.Marshal(f)
+		canon, err := validateFocus(raw)
+		if err != nil {
+			t.Logf("rejected valid focus: %v", err)
+			return false
+		}
+		again, err := validateFocus(canon)
+		if err != nil || !bytes.Equal(canon, again) {
+			t.Logf("not idempotent: %v", err)
+			return false
+		}
+		if rec := do(t, h, "PUT", "/api/settings", rawSettings(map[string]any{"focus": f})); rec.Code != 204 {
+			t.Logf("PUT: %d %s", rec.Code, rec.Body)
+			return false
+		}
+		var got focus
+		if err := json.Unmarshal(getState(t, h).Settings.Focus, &got); err != nil {
+			return false
+		}
+		return reflect.DeepEqual(got, focus(f))
 	}
 	if err := quick.Check(prop, &quick.Config{MaxCount: 500}); err != nil {
 		t.Fatal(err)

@@ -4,6 +4,7 @@ package main
 // stored as canonical JSON under its key:
 //
 //	schedule  {"weekday"|"mon".."sun": [{t, d, w, h, c}]}   the day, block by block
+//	focus     {"labels": [..], "weeks": {"1": [..], ..}}   the week focus labels and lines
 //
 // On PUT /api/settings and POST /api/import the field is optional: absent
 // leaves the row alone, JSON null deletes it (the page's "Reset to track
@@ -15,6 +16,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"unicode/utf8"
 )
 
@@ -85,6 +87,61 @@ func validateSchedule(raw json.RawMessage) (json.RawMessage, error) {
 	return json.Marshal(days)
 }
 
+// focus is the user's week-focus override: new labels for the focus rows
+// and/or the lines for particular weeks. Missing parts come from the track.
+type focus struct {
+	Labels []string            `json:"labels,omitempty"`
+	Weeks  map[string][]string `json:"weeks,omitempty"` // "1".."12" → one line per label
+}
+
+const (
+	maxFocusLabels = 6
+	maxLabelRunes  = 40
+	maxFocusWeeks  = 12
+	maxLineRunes   = 300
+)
+
+// validateFocus checks a user focus and returns it in canonical form.
+func validateFocus(raw json.RawMessage) (json.RawMessage, error) {
+	if len(raw) > maxCustomBytes {
+		return nil, fmt.Errorf("focus: too large")
+	}
+	var f focus
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&f); err != nil {
+		return nil, fmt.Errorf("focus: %v", err)
+	}
+	if len(f.Labels) == 0 && len(f.Weeks) == 0 {
+		return nil, fmt.Errorf("focus: nothing to save; send null to go back to the track default")
+	}
+	if len(f.Labels) > maxFocusLabels {
+		return nil, fmt.Errorf("focus: more than %d labels", maxFocusLabels)
+	}
+	for i, l := range f.Labels {
+		if l == "" || tooLong(l, maxLabelRunes) {
+			return nil, fmt.Errorf("focus: label %d must be 1–%d characters", i+1, maxLabelRunes)
+		}
+	}
+	for week, lines := range f.Weeks {
+		if n, err := strconv.Atoi(week); err != nil || n < 1 || n > maxFocusWeeks || strconv.Itoa(n) != week {
+			return nil, fmt.Errorf("focus: week %q must be 1 to %d", week, maxFocusWeeks)
+		}
+		if len(lines) > maxFocusLabels {
+			return nil, fmt.Errorf("focus: week %s has more than %d lines", week, maxFocusLabels)
+		}
+		for i, l := range lines {
+			if tooLong(l, maxLineRunes) {
+				return nil, fmt.Errorf("focus: week %s line %d is too long (≤ %d characters)", week, i+1, maxLineRunes)
+			}
+		}
+		if lines == nil {
+			f.Weeks[week] = []string{}
+		}
+	}
+	return json.Marshal(f)
+}
+
 // customWrite is one validated settings change: clear the key, or set it.
 type customWrite struct {
 	key   string
@@ -102,6 +159,7 @@ func validateCustom(in Settings) ([]customWrite, error) {
 		validate func(json.RawMessage) (json.RawMessage, error)
 	}{
 		{"schedule", in.Schedule, validateSchedule},
+		{"focus", in.Focus, validateFocus},
 	}
 	var writes []customWrite
 	for _, f := range fields {
