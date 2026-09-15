@@ -792,7 +792,7 @@
     4: { w: 'Behavioral practice', h: 'STAR stories on a timer, recorded. Listen back for rambling and missing results. Then rehearse the project deep-dive.' },
     5: { w: 'Mock interview, then weekly retro', h: 'Book a mock (coding and design on alternate weeks). At 4:00, retro: applications sent, response rate by source, what changes next week.' }
   };
-  const WEEKEND = {
+  const ENGINEERING_WEEKEND = {
     6: [{ t: '—', d: '', w: 'Light day', h: 'One problem, one mock if it\'s scheduled, then rest.', c: 'rest' }],
     0: [{ t: '—', d: '', w: 'Rest', h: 'Set up Monday before bed: the week\'s target companies and problem list. Nothing else.', c: 'rest' }]
   };
@@ -883,9 +883,16 @@
     { n: 'Payscale', u: 'https://www.payscale.com/', d: 'Salary ranges by title and city for roles levels.fyi does not cover' },
     { n: 'The STAR method', u: '', d: 'Situation, Task, Action, Result — every story ends with a number' }
   ];
-  const GENERAL_SCHEDULE = ENGINEERING_SCHEDULE.map(s => s.w === 'Algorithms deep work'
-    ? Object.assign({}, s, { w: 'Skill practice & work samples', h: 'Two hours on the exercise your loop uses: cases, portfolio pieces, decks, writing, mock calls. Timer on, then 15 minutes of notes on what to fix.' })
-    : s);
+  const GENERAL_OVERRIDES = {
+    'Plan the day': { h: 'Open this page. Clear the follow-ups due, pick today\'s three target roles, choose what you will practice.' },
+    'Algorithms deep work': { w: 'Skill practice & work samples', h: 'Two hours on the exercise your loop uses: cases, portfolio pieces, decks, writing, mock calls. Timer on, then 15 minutes of notes on what to fix.' },
+    'Close the day': { h: 'Note what was hard, write tomorrow\'s three targets, prep anything due tomorrow. Then stop — rest is part of the plan.' }
+  };
+  const GENERAL_SCHEDULE = ENGINEERING_SCHEDULE.map(s => GENERAL_OVERRIDES[s.w] ? Object.assign({}, s, GENERAL_OVERRIDES[s.w]) : s);
+  const GENERAL_WEEKEND = {
+    6: [{ t: '—', d: '', w: 'Light day', h: 'One application, one mock if it\'s scheduled, then rest.', c: 'rest' }],
+    0: [{ t: '—', d: '', w: 'Rest', h: 'Set up Monday before bed: the week\'s target companies and what you will practice. Nothing else.', c: 'rest' }]
+  };
   const GENERAL_AFTERNOON = {
     1: { w: 'Company research & tailoring', h: 'Ten minutes per target company: what they sell, recent news, why you. Then tailor two applications with what you found.' },
     3: { w: 'Company research & tailoring', h: 'Ten minutes per target company: what they sell, recent news, why you. Then tailor two applications with what you found.' },
@@ -897,13 +904,13 @@
   const TRACKS = {
     general: {
       label: 'General — any role', plan: GENERAL_PLAN, groups: GENERAL_GROUPS, resources: GENERAL_RESOURCES,
-      schedule: GENERAL_SCHEDULE, afternoon: GENERAL_AFTERNOON, focusLabels: ['Skills', 'Story', 'Practice'],
+      schedule: GENERAL_SCHEDULE, afternoon: GENERAL_AFTERNOON, weekend: GENERAL_WEEKEND, focusLabels: ['Skills', 'Story', 'Practice'],
       sub: 'Built for a full-time search: mornings on the skills and work samples your role needs, afternoons on applications, outreach, and interview practice.',
       weighting: 'This track covers what almost every loop asks for, whatever the role: a clear story, proof of your top skills, tailored applications, and practice on the exercise your field uses — case, presentation, portfolio review, role-play, or take-home. If your field has a specific round, spend the 9:00 block on it. Switch tracks above for algorithms and system design.'
     },
     engineering: {
       label: 'Software engineering', plan: ENGINEERING_PLAN, groups: ENGINEERING_GROUPS, resources: ENGINEERING_RESOURCES,
-      schedule: ENGINEERING_SCHEDULE, afternoon: ENGINEERING_AFTERNOON, focusLabels: ['Algorithms', 'Design', 'Behavioral'],
+      schedule: ENGINEERING_SCHEDULE, afternoon: ENGINEERING_AFTERNOON, weekend: ENGINEERING_WEEKEND, focusLabels: ['Algorithms', 'Design', 'Behavioral'],
       sub: 'Built for a full-time search: mornings on data structures and algorithms, afternoons on applications, system design, and behavioral practice.',
       weighting: 'This track covers the three rounds most software engineering loops use, at any level: system design starts in week 2 on home turf and runs two cases a week from week 3; behavioral prep centers on ownership, collaboration, and measurable results; algorithms stay daily because most loops still open with a coding screen. Shift the mix toward your target role — more design for infrastructure and backend, more front-end fundamentals for UI roles, fewer design cases for early-career loops.'
     }
@@ -1061,9 +1068,10 @@
 
     // schedule
     let items;
-    if (WEEKEND[dow]) { items = WEEKEND[dow]; $('#sched-title').textContent = dow === 6 ? 'Saturday' : 'Sunday'; $('#sched-total').textContent = 'weekend'; }
+    const tr = track();
+    if (tr.weekend[dow]) { items = tr.weekend[dow]; $('#sched-title').textContent = dow === 6 ? 'Saturday' : 'Sunday'; $('#sched-total').textContent = 'weekend'; }
     else {
-      const tr = track(); items = tr.schedule.map(s => s.vary ? Object.assign({}, s, tr.afternoon[dow]) : s);
+      items = tr.schedule.map(s => s.vary ? Object.assign({}, s, tr.afternoon[dow]) : s);
       $('#sched-title').textContent = 'The day, block by block'; $('#sched-total').textContent = '8:30 – 4:30 · 7 focused hours';
     }
     $('#sched').innerHTML = items.map(s =>
