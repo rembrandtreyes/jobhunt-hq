@@ -7,7 +7,7 @@ Instructions for any coding agent working in this repo (Claude Code, Codex, Curs
 A personal job-search command center: a single Go binary serving one HTML page, with everything stored in a local SQLite file. Built for one user on localhost. Keep it that way: simple, single-file, no auth, no frameworks. Free and open source (MIT).
 
 Four tabs in `web/index.html`:
-- **Today** — day/week counter, weekly stats (applied vs goal, pipeline, interviewing, follow-ups due), the day block by block, and the current week's study focus. All derived client-side from the data below. The schedule and the focus each have an Edit button; what the user saves lives in `settings.schedule` / `settings.focus` and overrides the track (see "Per-user customization").
+- **Today** — day/week counter, weekly stats (applied vs goal, pipeline, interviewing, follow-ups due), the day block by block, and the current week's study focus. All derived client-side from the data below. The schedule and the focus each have an Edit button; what the user saves lives in `settings.schedule` / `settings.focus` and overrides the track (see "Per-user customization"). Until the first application exists, a "Getting started" card sits under the stats with three live-checked steps (start date stored, track stored, first application); "Skip for now" hides it per browser via localStorage.
 - **Applications** — the tracker. Pipeline statuses: `saved, applied, screen, technical, onsite, offer, rejected, withdrawn`. Every application should carry a `nextDate` + `nextAction`; the Today tab surfaces them when due.
 - **Study plan** — 8-week tracks loaded from `tracks/*.json`, one file per track: `general` (any role, ids `g1-…`) and `engineering` (ids `w1-resume`, `w3-case`, …). The user picks a track in settings (`settings.track`, a track id, default general). Item ids are the keys in `study_progress` and must stay stable and unique across all tracks; never rename, only add. Each track file also carries its schedule, afternoon blocks, weekend, resources, groups, focus labels, rules, and weighting text (see "Study tracks").
 - **Companies** — target list with A/B/C priority, why-it-fits, careers link, hiring signal. Seeded from `seed.json` on first run.
@@ -18,8 +18,10 @@ Four tabs in `web/index.html`:
 main.go                        HTTP server, SQLite schema, REST API, first-run seeding (Go 1.22+ mux patterns)
 tracks.go                      loads + validates tracks/*.json at startup, serves GET /api/tracks, injects them into the page
 customize.go                   validation + storage of the per-user schedule and focus settings
-main_test.go, tracks_test.go, customize_test.go
-                               httptest suite against a temp-file SQLite db; testing/quick property tests for the validators
+openings.go                    GET /api/openings — fetches, caches, filters the companies' board feeds (allow-listed hosts only)
+main_test.go, tracks_test.go, customize_test.go, openings_test.go
+                               httptest suite against a temp-file SQLite db; testing/quick property tests; feed stubs, no network
+.goreleaser.yaml               release build matrix; .github/workflows/release.yml runs it on v* tags
 web/index.html                 the entire UI (inline CSS + JS, no build step), embedded via go:embed; has a __TRACKS__ placeholder
 tracks/*.json                  the study tracks, one file each, compiled into the binary (contributions go here)
 seed.json                      first-run data — never overwrites existing rows
@@ -56,6 +58,7 @@ Rebuild after editing `web/index.html` (it is embedded at compile time). `hq.db*
 |---|---|---|
 | GET | `/api/state` | `{apps, companies, done, settings}` — the page's only read after boot |
 | GET | `/api/tracks` | the loaded tracks keyed by id, exactly the bytes injected into the page's `<script id="tracks-data">` |
+| GET | `/api/openings?q=&loc=&refresh=1` | `{openings, boards, failed, cachedAt, truncated}` — searches every company's `sourceUrl` feed (`openings.go`); read-only; see "Openings search" |
 | GET | `/api/export` | same, as a download |
 | POST | `/api/import` | the export shape; upserts apps + companies (events on status change), adds study items, applies settings; all-or-nothing on validation; never deletes |
 | PUT | `/api/applications/{id}` | upsert; body = Application without id |
@@ -73,6 +76,14 @@ The page re-fetches `/api/state` after every write except study toggles (those p
 - To add a company, confirm its feed returns JSON with engineering roles, then add a row with both URLs. Never add a company whose feed you did not fetch.
 - **Job search procedure:** `.claude/skills/find-jobs/SKILL.md` is written as a Claude Code skill but is plain markdown any agent can follow: read `/api/state`, fetch each `sourceUrl`, filter by title/location/seniority, dedupe by URL against existing apps, show the user a table, and only after confirmation `PUT` each chosen posting as `status: "saved"` with `source`, `url`, `nextAction`, `nextDate`. Never fabricate a posting. Never change an existing application's status.
 - The page's default `startDate` is empty so Day 1 is the day the user opens it; the seed sets no start date.
+
+## Openings search
+
+- `GET /api/openings` (`openings.go`) is the in-page version of the skill: it reads every company's `sourceUrl`, fetches the feeds concurrently (16 at a time, 10 s each), parses the three shapes by structure (Lever is a top-level array; Greenhouse and Ashby are `{jobs: [...]}` with different field names), filters (`q`: every word in the title; `loc`: any word in the location; both case-insensitive), sorts newest first (undated last), and caps at 500 with `truncated: true`.
+- **Allow-list:** only `https` URLs on `boards-api.greenhouse.io`, `api.lever.co`, `api.ashbyhq.com` are fetched (`knownBoard`). Anything else is reported in `failed` as "not a known board". The companies table is user-editable, so this is the SSRF guard; keep it.
+- **Cache:** one hour per feed in memory; failures are retried after five minutes; `refresh=1` refetches. `main()` warms the cache in a goroutine after startup. `newServer` never fetches, so tests run offline: they replace `s.feeds.client` and `s.feeds.allow` with an httptest stub (see `openings_test.go`).
+- The endpoint writes nothing. Saving a result is the page doing a normal `PUT /api/applications/{id}` with `status: saved`, `source: "Job board"`, `nextAction: "Apply"`, `nextDate: today+2`.
+- Page: the "Search the boards" panel on the Companies tab (`searchOpenings`, `renderOpenings`, `saveOpening`); rows whose URL is already an application show "In tracker".
 
 ## Study tracks
 
@@ -105,6 +116,12 @@ The page re-fetches `/api/state` after every write except study toggles (those p
 - Do not change the schema, JSON field names, or study item ids without the owner's OK.
 - Never commit `hq.db*`, the `hq` binary, or anyone's personal data. The seed is sample data.
 - This is a tool people use every morning, not a product. No accounts, no telemetry, no upsells.
+
+## Releases
+
+- `git tag v0.2.0 && git push origin v0.2.0` runs `.github/workflows/release.yml`: `go test`, then GoReleaser (`.goreleaser.yaml`) builds `hq` for darwin/linux (amd64, arm64) and windows/amd64 with `CGO_ENABLED=0`, packs each with README and LICENSE, writes `checksums.txt`, and publishes a GitHub release with a git-derived changelog. `main.version` is set from the tag; `hq -version` prints it.
+- Try the config without publishing: `go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean` (nothing installed; `dist/` is gitignored).
+- Binaries are unsigned. The README's Download section carries the macOS quarantine command and the Windows SmartScreen note; keep those in sync if the archive names change.
 
 ## Suggested next work
 

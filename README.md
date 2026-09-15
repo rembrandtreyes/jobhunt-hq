@@ -13,11 +13,24 @@ Four tabs on one page:
 - **Today** — day and week counter for your search, weekly stats (applied vs. goal, pipeline, interviewing, follow-ups due), the day block by block, and this week's study focus. Both the schedule and the focus have an **Edit** button: rewrite them in plain text, and Reset brings the track's version back.
 - **Applications** — the tracker. Each application moves through `saved → applied → screen → technical → onsite → offer` (or `rejected` / `withdrawn`). Every status change is logged, so you can see which sources actually convert.
 - **Study plan** — an 8-week checklist in two tracks: **General** (any role: resume, story bank, applications, outreach, interview practice, negotiation) and **Software engineering** (adds algorithms, system design, and coding mocks). Pick yours in settings. Progress is saved per item. Each track is one JSON file in `tracks/`, so a track for your field is a small contribution (see below).
-- **Companies** — 95 employers to start from, each with a live job board that lists every open role, in every function. See below.
+- **Companies** — 95 employers to start from, each with a live job board that lists every open role, in every function, and a search box that queries all of them at once and saves what you like into the tracker. See below.
 
 Everything is stored locally. Export a JSON backup any time and import it on another machine.
 
-## Quick start
+## Download
+
+Grab the file for your machine from the [releases page](https://github.com/rembrandtreyes/jobhunt-hq/releases/latest), unzip it, and run `hq`. It opens on http://127.0.0.1:8787 and creates `hq.db` next to itself. No Go, no install.
+
+| you have | file | first run |
+|---|---|---|
+| Mac with Apple silicon (M1 and later) | `hq_…_darwin_arm64.tar.gz` | `xattr -d com.apple.quarantine ./hq && ./hq` — macOS blocks unsigned downloads once; this clears the flag. Or right-click `hq` → Open. |
+| Mac with an Intel chip | `hq_…_darwin_amd64.tar.gz` | same as above |
+| Windows | `hq_…_windows_amd64.zip` | double-click `hq.exe`; if SmartScreen appears, More info → Run anyway |
+| Linux | `hq_…_linux_amd64.tar.gz` (or `arm64`) | `./hq` |
+
+Keep `hq` and `hq.db` together, wherever you like. To upgrade, replace `hq`; the database stays.
+
+## Quick start from source
 
 Requires [Go](https://go.dev/dl/) 1.24 or newer.
 
@@ -93,6 +106,8 @@ The first run loads `seed.json`: **95 companies whose job boards (Greenhouse, Le
 Seeding never overwrites rows that already exist. To start from your own list, edit `seed.json` before the first run, or delete `hq.db` and run again. The Companies tab lets you add, edit, and delete freely.
 
 ## Find jobs
+
+**In the page.** The Companies tab has **Search the boards**: type role words (`customer success manager`, `backend engineer`, `recruiter`) and, if you like, location words (`remote`, `phoenix`), and every seeded company's live board is searched at once — every function, not just engineering. All the role words must appear in the title; any one location word is enough. Newest postings come first. **Save** puts a posting into your tracker as `saved` with "Apply" due in two days; a posting already in your tracker says so. Results are cached for an hour per board; **refresh** fetches again. Boards are fetched in the background when the server starts, so the first search is quick.
 
 **With Claude Code.** The repo ships a project skill at `.claude/skills/find-jobs/`. With the server running, open Claude Code in the repo and say something like:
 
@@ -185,6 +200,7 @@ All JSON. The page is the only client, but nothing stops a script from using it.
 |---|---|---|
 | GET | `/api/state` | — → `{apps, companies, done, settings}` |
 | GET | `/api/tracks` | — → the study tracks keyed by id, straight from `tracks/*.json` |
+| GET | `/api/openings?q=&loc=&refresh=1` | — → `{openings, boards, failed, cachedAt, truncated}`; searches every company's board feed (cached an hour), read-only |
 | GET | `/api/export` | same as state, served as a download (backup) |
 | POST | `/api/import` | the export shape; upserts apps and companies, adds study items, applies settings |
 | PUT | `/api/applications/{id}` | application object (see `Application` in `main.go`); upsert |
