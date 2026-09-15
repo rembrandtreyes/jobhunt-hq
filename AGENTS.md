@@ -103,7 +103,7 @@ The page re-fetches `/api/state` after every write except study toggles (those p
 
 - One file, vanilla JS in an IIFE, no dependencies. Fonts come from Google Fonts with real fallback stacks; everything else is inline.
 - Theme tokens are CSS variables defined on `:root` (light), overridden under `prefers-color-scheme: dark` and `[data-theme="dark"]`. Add colors as tokens, never as literals inside components.
-- All user content goes through `esc()` before being put in innerHTML.
+- All user content goes through `esc()` before being put in innerHTML. Every external link goes through `safeHref()` (http/https only, else an empty href): seed data, board feeds, and typed URLs are content, never code. The server drops non-http(s) URLs from feeds too (`webURL` in `openings.go`).
 - The `store` object is the only place that talks to the server. Keep everything outside `store` backend-agnostic so the same page can run against a different store later (browser-local, hosted). `store.saveSettings(patch)` sends the three scalar settings plus whatever `patch` adds, e.g. `{ schedule: null }`.
 - `TRACKS` is parsed from the `tracks-data` script tag at boot; `TRACK_IDS` is the display order and `DEFAULT_TRACK` is `general` when present. Never put track content back into the page.
 - Editors (schedule, focus) are hidden `.panel-b.editor` siblings of the card body, toggled by `data-action` buttons; `closeEditors()` runs on every tab switch.
@@ -121,7 +121,9 @@ The page re-fetches `/api/state` after every write except study toggles (those p
 
 - `git tag v0.2.0 && git push origin v0.2.0` runs `.github/workflows/release.yml`: `go test`, then GoReleaser (`.goreleaser.yaml`) builds `hq` for darwin/linux (amd64, arm64) and windows/amd64 with `CGO_ENABLED=0`, packs each with README and LICENSE, writes `checksums.txt`, and publishes a GitHub release with a git-derived changelog. `main.version` is set from the tag; `hq -version` prints it.
 - Try the config without publishing: `go run github.com/goreleaser/goreleaser/v2@latest release --snapshot --clean` (nothing installed; `dist/` is gitignored).
-- Binaries are unsigned. The README's Download section carries the macOS quarantine command and the Windows SmartScreen note; keep those in sync if the archive names change.
+- Archive names carry no version (`hq_darwin_arm64.tar.gz`, …) so `releases/latest/download/<name>` is a stable URL for the README's curl lines; the version lives in the tag and `hq -version`.
+- The module path is `github.com/rembrandtreyes/jobhunt-hq` so `go install github.com/rembrandtreyes/jobhunt-hq@latest` works (it installs as `jobhunt-hq`). Keep it matching the repo.
+- Binaries are unsigned. The README's Download section carries the macOS quarantine command, the curl alternative that avoids it, and the Windows SmartScreen note; keep those in sync if the archive names change.
 
 ## Suggested next work
 

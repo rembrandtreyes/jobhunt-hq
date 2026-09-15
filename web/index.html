@@ -717,6 +717,8 @@
   const $ = (s, r) => (r || document).querySelector(s);
   const $$ = (s, r) => Array.from((r || document).querySelectorAll(s));
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  // Only http(s) may become a link: seed, feed, and typed URLs are all content, never code.
+  const safeHref = u => /^https?:\/\/[^\s]+$/i.test(String(u || '').trim()) ? esc(String(u).trim()) : '';
   const pad = n => String(n).padStart(2, '0');
   const iso = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
   const todayISO = () => iso(new Date());
@@ -1111,7 +1113,7 @@
       '<td class="date">' + (a.appliedAt ? esc(fmt(a.appliedAt)) : '—') + '</td>' +
       '<td class="next">' + (a.nextDate ? '<b class="' + cls + '">' + esc(fmt(a.nextDate)) + ' · ' + esc(rel(a.nextDate)) + '</b>' : '<b class="muted">—</b>') + (a.nextAction ? '<span>' + esc(a.nextAction) + '</span>' : '') + '</td>' +
       '<td class="date">' + esc(a.source || '—') + '</td>' +
-      '<td class="act">' + (a.url ? '<a class="link-out" href="' + esc(a.url) + '" target="_blank" rel="noopener">Posting ↗</a> ' : '') +
+      '<td class="act">' + (a.url ? '<a class="link-out" href="' + safeHref(a.url) + '" target="_blank" rel="noopener">Posting ↗</a> ' : '') +
         (a.example ? '' : '<button class="btn btn-ghost btn-sm" type="button" data-edit="' + esc(a.id) + '">Edit</button>') + '</td>' +
       '</tr>';
   }
@@ -1154,7 +1156,7 @@
     }).join('');
 
     $('#resources').innerHTML = tr.resources.map(r =>
-      '<li>' + (r.u ? '<a href="' + esc(r.u) + '" target="_blank" rel="noopener">' + esc(r.n) + '</a>' : '<b>' + esc(r.n) + '</b>') + '<span>' + esc(r.d) + '</span></li>').join('');
+      '<li>' + (r.u ? '<a href="' + safeHref(r.u) + '" target="_blank" rel="noopener">' + esc(r.n) + '</a>' : '<b>' + esc(r.n) + '</b>') + '<span>' + esc(r.d) + '</span></li>').join('');
   }
   function patchStudyProgress() {
     const p = studyProgress();
@@ -1183,7 +1185,7 @@
       '<td class="co"><b>' + esc(c.name) + '</b>' + (c.notes ? '<span>' + esc(c.notes) + '</span>' : '') + '</td>' +
       '<td class="why">' + esc(c.why || '') + '</td>' +
       '<td><span class="pill">' + esc(c.status || 'Researching') + '</span></td>' +
-      '<td>' + (c.careersUrl ? '<a class="link-out" href="' + esc(c.careersUrl) + '" target="_blank" rel="noopener">Careers ↗</a>' : '<span class="muted">—</span>') + '</td>' +
+      '<td>' + (c.careersUrl ? '<a class="link-out" href="' + safeHref(c.careersUrl) + '" target="_blank" rel="noopener">Careers ↗</a>' : '<span class="muted">—</span>') + '</td>' +
       '<td class="act"><button class="btn btn-ghost btn-sm" type="button" data-edit-company="' + esc(c.id) + '">Edit</button></td>' +
       '</tr>').join('');
   }
@@ -1220,7 +1222,7 @@
     const known = new Set(state.apps.map(a => a.url).filter(Boolean));
     $('#openings-body').innerHTML = (openings.rows.length ? openings.rows.map((o, i) =>
       '<tr><td class="co"><b>' + esc(o.company) + '</b></td>' +
-      '<td class="role"><a class="link-out" href="' + esc(o.url) + '" target="_blank" rel="noopener">' + esc(o.title) + ' ↗</a></td>' +
+      '<td class="role"><a class="link-out" href="' + safeHref(o.url) + '" target="_blank" rel="noopener">' + esc(o.title) + ' ↗</a></td>' +
       '<td>' + esc(o.location || '—') + '</td><td class="date">' + esc(o.posted || '') + '</td>' +
       '<td class="act">' + (known.has(o.url) ? '<span class="muted">In tracker</span>' : '<button class="btn btn-ghost btn-sm" type="button" data-save-opening="' + i + '">Save</button>') + '</td></tr>').join('')
       : '<tr class="empty-row"><td colspan="5">No openings match. Try fewer role words, or a different location.</td></tr>') +

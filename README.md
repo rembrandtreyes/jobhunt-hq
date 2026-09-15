@@ -28,6 +28,16 @@ Grab the file for your machine from the [releases page](https://github.com/rembr
 | Windows | `hq_…_windows_amd64.zip` | double-click `hq.exe`; if SmartScreen appears, More info → Run anyway |
 | Linux | `hq_…_linux_amd64.tar.gz` (or `arm64`) | `./hq` |
 
+Or skip the browser and the quarantine flag entirely with one line in a terminal (macOS, Apple silicon shown; swap `darwin_arm64` for `darwin_amd64`, `linux_amd64`, or `linux_arm64`):
+
+```sh
+mkdir -p ~/jobhunt && cd ~/jobhunt
+curl -L https://github.com/rembrandtreyes/jobhunt-hq/releases/latest/download/hq_darwin_arm64.tar.gz | tar xz
+./hq
+```
+
+Have Go installed? `go install github.com/rembrandtreyes/jobhunt-hq@latest` builds it locally as `jobhunt-hq` in your Go bin directory, with no download warnings at all.
+
 Keep `hq` and `hq.db` together, wherever you like. To upgrade, replace `hq`; the database stays.
 
 ## Quick start from source

@@ -38,6 +38,8 @@ func newBoardStub(t *testing.T) *boardStub {
 		jobs := []map[string]any{
 			{"title": "\t Senior Backend Engineer ", "location": map[string]string{"name": " Remote - US"}, "absolute_url": "https://gh.example/1", "updated_at": "2026-09-10T12:00:00-04:00"}, // boards ship stray whitespace; it must be trimmed
 			{"title": "Account Executive", "location": map[string]string{"name": "Phoenix, AZ"}, "absolute_url": "https://gh.example/2", "updated_at": "2026-09-11T12:00:00-04:00"},
+			{"title": "Evil posting", "location": map[string]string{"name": "Anywhere"}, "absolute_url": "javascript:alert(1)"}, // a feed is external content; this must never reach an href
+			{"title": "Data posting", "location": map[string]string{"name": "Anywhere"}, "absolute_url": "data:text/html,hi"},
 		}
 		for i := 0; i < b.extra; i++ {
 			jobs = append(jobs, map[string]any{"title": fmt.Sprintf("Engineer %03d", i), "location": map[string]string{"name": "Remote"}, "absolute_url": fmt.Sprintf("https://gh.example/x%d", i)})
@@ -64,6 +66,10 @@ func newBoardStub(t *testing.T) *boardStub {
 	mux.HandleFunc("/html", func(w http.ResponseWriter, r *http.Request) {
 		b.hits.Add(1)
 		w.Write([]byte("<html>not json</html>"))
+	})
+	mux.HandleFunc("/redir", func(w http.ResponseWriter, r *http.Request) {
+		b.hits.Add(1)
+		http.Redirect(w, r, "http://127.0.0.1:1/secret", http.StatusFound) // a board bouncing to something internal
 	})
 	b.srv = httptest.NewServer(mux)
 	t.Cleanup(b.srv.Close)
@@ -225,12 +231,13 @@ func TestOpeningsRefusesUnknownHostsAndNonJSON(t *testing.T) {
 	s, h, stub := openingsServer(t)
 	do(t, h, "PUT", "/api/companies/local", Company{Name: "Local service", SourceURL: "http://127.0.0.1:1/secret"})
 	do(t, h, "PUT", "/api/companies/htmlco", Company{Name: "HTML board", SourceURL: stub.srv.URL + "/html"})
+	do(t, h, "PUT", "/api/companies/redirco", Company{Name: "Redirecting board", SourceURL: stub.srv.URL + "/redir"})
 	r := search(t, h, "")
 	reasons := map[string]string{}
 	for _, f := range r.Failed {
 		reasons[f.CompanyID] = f.Reason
 	}
-	if reasons["local"] != "not a known board" || reasons["htmlco"] != "feed is not JSON we understand" {
+	if reasons["local"] != "not a known board" || reasons["htmlco"] != "feed is not JSON we understand" || reasons["redirco"] != "redirect refused" {
 		t.Fatalf("reasons = %v", reasons)
 	}
 	// The default allow-list, used outside tests, is https on the three ATS hosts only.

@@ -24,7 +24,10 @@ builds:
 archives:
   - id: default
     formats: [tar.gz]
-    name_template: "hq_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    # No version in the name, so /releases/latest/download/hq_darwin_arm64.tar.gz
+    # is a stable URL for the README's curl lines. The version is in the tag
+    # and in `hq -version`.
+    name_template: "hq_{{ .Os }}_{{ .Arch }}"
     format_overrides:
       - goos: windows
         formats: [zip]

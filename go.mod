@@ -1,4 +1,4 @@
-module jobhunt-hq
+module github.com/rembrandtreyes/jobhunt-hq
 
 go 1.24.0
 

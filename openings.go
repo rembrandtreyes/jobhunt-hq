@@ -140,7 +140,18 @@ func (c *feedCache) fetchOne(ctx context.Context, raw string) *feedEntry {
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "jobhunt-hq/"+version)
-	res, err := c.client.Do(req)
+	// A known board could redirect anywhere; every hop must pass the same allow-list.
+	client := *c.client
+	client.CheckRedirect = func(r *http.Request, via []*http.Request) error {
+		if len(via) >= 3 {
+			return fmt.Errorf("too many redirects")
+		}
+		if !c.allow(r.URL) {
+			return fmt.Errorf("redirect refused")
+		}
+		return nil
+	}
+	res, err := client.Do(req)
 	if err != nil {
 		return &feedEntry{at: now, err: trimErr(err)}
 	}
@@ -190,14 +201,15 @@ func parseBoard(body []byte) ([]boardRow, error) {
 		rows := make([]boardRow, 0, len(jobs))
 		for _, j := range jobs {
 			title := strings.TrimSpace(j.Text) // boards ship stray tabs and spaces in titles
-			if title == "" || j.HostedURL == "" {
+			u := webURL(j.HostedURL)
+			if title == "" || u == "" {
 				continue
 			}
 			posted := ""
 			if j.CreatedAt > 0 {
 				posted = time.UnixMilli(j.CreatedAt).UTC().Format("2006-01-02")
 			}
-			rows = append(rows, boardRow{Title: title, Location: strings.TrimSpace(j.Categories.Location), URL: strings.TrimSpace(j.HostedURL), Posted: posted})
+			rows = append(rows, boardRow{Title: title, Location: strings.TrimSpace(j.Categories.Location), URL: u, Posted: posted})
 		}
 		return rows, nil
 	}
@@ -216,9 +228,9 @@ func parseBoard(body []byte) ([]boardRow, error) {
 	}
 	rows := make([]boardRow, 0, len(feed.Jobs))
 	for _, j := range feed.Jobs {
-		u := strings.TrimSpace(j.AbsoluteURL)
+		u := webURL(j.AbsoluteURL)
 		if u == "" {
-			u = strings.TrimSpace(j.JobURL)
+			u = webURL(j.JobURL)
 		}
 		title := strings.TrimSpace(j.Title) // boards ship stray tabs and spaces in titles
 		if title == "" || u == "" {
@@ -246,6 +258,17 @@ func parseBoard(body []byte) ([]boardRow, error) {
 		rows = append(rows, boardRow{Title: title, Location: strings.TrimSpace(loc), URL: u, Posted: posted})
 	}
 	return rows, nil
+}
+
+// webURL returns a trimmed http(s) URL, or "" for anything else — a feed is
+// external content, and a javascript: or data: link must never reach an href.
+func webURL(s string) string {
+	s = strings.TrimSpace(s)
+	u, err := url.Parse(s)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return ""
+	}
+	return s
 }
 
 // words lower-cases and splits a query; empty input means "no filter".
