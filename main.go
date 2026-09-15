@@ -184,6 +184,7 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("DELETE /api/companies/{id}", s.handleDeleteCompany)
 	mux.HandleFunc("PUT /api/study", s.handlePutStudy)
 	mux.HandleFunc("PUT /api/settings", s.handlePutSettings)
+	mux.HandleFunc("POST /api/import", s.handleImport)
 	return mux
 }
 
@@ -323,35 +324,41 @@ func (s *server) handlePutApplication(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-
-	var prevStatus string
-	err = tx.QueryRow(`SELECT status FROM applications WHERE id = ?`, id).Scan(&prevStatus)
-	isNew := errors.Is(err, sql.ErrNoRows)
-	if err != nil && !isNew {
+	if err := upsertApplication(tx, a, ts); err != nil {
 		httpError(w, 500, err.Error())
 		return
-	}
-	_, err = tx.Exec(`INSERT INTO applications (id, company, role, url, status, source, location, salary, applied_at, next_date, next_action, contact, notes, created_at, updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-		ON CONFLICT(id) DO UPDATE SET company=excluded.company, role=excluded.role, url=excluded.url, status=excluded.status, source=excluded.source,
-		  location=excluded.location, salary=excluded.salary, applied_at=excluded.applied_at, next_date=excluded.next_date, next_action=excluded.next_action,
-		  contact=excluded.contact, notes=excluded.notes, updated_at=excluded.updated_at`,
-		a.ID, a.Company, a.Role, a.URL, a.Status, a.Source, a.Location, a.Salary, a.AppliedAt, a.NextDate, a.NextAction, a.Contact, a.Notes, a.CreatedAt, a.UpdatedAt)
-	if err != nil {
-		httpError(w, 500, err.Error())
-		return
-	}
-	if isNew || prevStatus != a.Status {
-		if _, err := tx.Exec(`INSERT INTO application_events (application_id, status, at) VALUES (?,?,?)`, a.ID, a.Status, ts); err != nil {
-			httpError(w, 500, err.Error())
-			return
-		}
 	}
 	if err := tx.Commit(); err != nil {
 		httpError(w, 500, err.Error())
 		return
 	}
 	writeJSON(w, 200, a)
+}
+
+// upsertApplication writes the row and, when the row is new or its status
+// changed, exactly one application_events entry — inside the caller's
+// transaction. Shared by PUT /api/applications/{id} and POST /api/import.
+func upsertApplication(tx *sql.Tx, a Application, ts string) error {
+	var prevStatus string
+	err := tx.QueryRow(`SELECT status FROM applications WHERE id = ?`, a.ID).Scan(&prevStatus)
+	isNew := errors.Is(err, sql.ErrNoRows)
+	if err != nil && !isNew {
+		return err
+	}
+	if _, err := tx.Exec(`INSERT INTO applications (id, company, role, url, status, source, location, salary, applied_at, next_date, next_action, contact, notes, created_at, updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+		ON CONFLICT(id) DO UPDATE SET company=excluded.company, role=excluded.role, url=excluded.url, status=excluded.status, source=excluded.source,
+		  location=excluded.location, salary=excluded.salary, applied_at=excluded.applied_at, next_date=excluded.next_date, next_action=excluded.next_action,
+		  contact=excluded.contact, notes=excluded.notes, updated_at=excluded.updated_at`,
+		a.ID, a.Company, a.Role, a.URL, a.Status, a.Source, a.Location, a.Salary, a.AppliedAt, a.NextDate, a.NextAction, a.Contact, a.Notes, a.CreatedAt, a.UpdatedAt); err != nil {
+		return err
+	}
+	if isNew || prevStatus != a.Status {
+		if _, err := tx.Exec(`INSERT INTO application_events (application_id, status, at) VALUES (?,?,?)`, a.ID, a.Status, ts); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *server) handleDeleteApplication(w http.ResponseWriter, r *http.Request) {
@@ -513,6 +520,116 @@ func (s *server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(204)
+}
+
+// handleImport merges an export — the /api/state shape — into the database.
+// Applications and companies upsert by id (a status change is logged as an
+// event, exactly like a PUT), study items are added, settings apply when set.
+// Nothing is deleted. All-or-nothing: one invalid record rejects the body.
+func (s *server) handleImport(w http.ResponseWriter, r *http.Request) {
+	var in State
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<20)).Decode(&in); err != nil {
+		httpError(w, 400, "bad json: "+err.Error())
+		return
+	}
+	for i, a := range in.Apps {
+		switch {
+		case !idRe.MatchString(a.ID):
+			httpError(w, 400, fmt.Sprintf("apps[%d]: bad id", i))
+			return
+		case a.Company == "" || a.Role == "":
+			httpError(w, 400, fmt.Sprintf("apps[%d]: company and role are required", i))
+			return
+		case !statuses[a.Status]:
+			httpError(w, 400, fmt.Sprintf("apps[%d]: unknown status %s", i, a.Status))
+			return
+		}
+	}
+	for i, c := range in.Companies {
+		if !idRe.MatchString(c.ID) || c.Name == "" {
+			httpError(w, 400, fmt.Sprintf("companies[%d]: id and name are required", i))
+			return
+		}
+	}
+	if in.Settings.StartDate != "" {
+		if _, err := time.Parse("2006-01-02", in.Settings.StartDate); err != nil {
+			httpError(w, 400, "settings.startDate must be YYYY-MM-DD")
+			return
+		}
+	}
+	if in.Settings.WeeklyGoal < 0 || in.Settings.WeeklyGoal > 1000 {
+		httpError(w, 400, "settings.weeklyGoal out of range")
+		return
+	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		httpError(w, 500, err.Error())
+		return
+	}
+	defer tx.Rollback()
+	ts := now()
+	for _, a := range in.Apps {
+		if a.CreatedAt == "" {
+			a.CreatedAt = ts
+		}
+		a.UpdatedAt = ts
+		if err := upsertApplication(tx, a, ts); err != nil {
+			httpError(w, 500, err.Error())
+			return
+		}
+	}
+	for _, c := range in.Companies {
+		if c.Priority == "" {
+			c.Priority = "B"
+		}
+		if c.Status == "" {
+			c.Status = "Researching"
+		}
+		if c.CreatedAt == "" {
+			c.CreatedAt = ts
+		}
+		c.UpdatedAt = ts
+		if err := upsertCompany(tx, c); err != nil {
+			httpError(w, 500, err.Error())
+			return
+		}
+	}
+	added := 0
+	for id, on := range in.Done {
+		if !on {
+			continue
+		}
+		res, err := tx.Exec(`INSERT OR IGNORE INTO study_progress (item_id, done_at) VALUES (?,?)`, id, ts)
+		if err != nil {
+			httpError(w, 500, err.Error())
+			return
+		}
+		if n, _ := res.RowsAffected(); n > 0 {
+			added++
+		}
+	}
+	up := func(k, v string) error {
+		_, err := tx.Exec(`INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`, k, v)
+		return err
+	}
+	if in.Settings.StartDate != "" {
+		if err := up("startDate", in.Settings.StartDate); err != nil {
+			httpError(w, 500, err.Error())
+			return
+		}
+	}
+	if in.Settings.WeeklyGoal > 0 {
+		if err := up("weeklyGoal", strconv.Itoa(in.Settings.WeeklyGoal)); err != nil {
+			httpError(w, 500, err.Error())
+			return
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		httpError(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]int{"apps": len(in.Apps), "companies": len(in.Companies), "done": added})
 }
 
 // ---------- seed ----------

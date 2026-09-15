@@ -274,3 +274,96 @@ func TestSettingsRoundTrip(t *testing.T) {
 		t.Fatalf("rejected startDate was stored: %+v", st.Settings)
 	}
 }
+
+// ---------- import ----------
+
+func TestImportMergesExportShape(t *testing.T) {
+	s, h := newTestServer(t)
+	before := len(getState(t, h).Companies)
+	body := State{
+		Apps:      []Application{{ID: "acme", Company: "Acme", Role: "SWE", Status: "applied"}},
+		Companies: []Company{{ID: "widgetco", Name: "WidgetCo"}},
+		Done:      map[string]bool{"w1-resume": true, "w1-linkedin": false},
+		Settings:  Settings{StartDate: "2026-09-01", WeeklyGoal: 12},
+	}
+	if rec := do(t, h, "POST", "/api/import", body); rec.Code != 200 {
+		t.Fatalf("import: %d %s", rec.Code, rec.Body)
+	}
+	st := getState(t, h)
+	if len(st.Apps) != 1 || st.Apps[0].Status != "applied" {
+		t.Fatalf("apps = %+v", st.Apps)
+	}
+	if len(st.Companies) != before+1 {
+		t.Fatalf("companies = %d, want %d", len(st.Companies), before+1)
+	}
+	if !st.Done["w1-resume"] || st.Done["w1-linkedin"] {
+		t.Fatalf("done = %v", st.Done)
+	}
+	if st.Settings != (Settings{StartDate: "2026-09-01", WeeklyGoal: 12}) {
+		t.Fatalf("settings = %+v", st.Settings)
+	}
+	events := func() int {
+		return count(t, s, `SELECT COUNT(*) FROM application_events WHERE application_id = 'acme'`)
+	}
+	if n := events(); n != 1 {
+		t.Fatalf("events after import = %d, want 1", n)
+	}
+	// Re-importing the same export is idempotent: no new event, no new company.
+	do(t, h, "POST", "/api/import", body)
+	if n := events(); n != 1 {
+		t.Fatalf("events after re-import = %d, want 1", n)
+	}
+	if n := len(getState(t, h).Companies); n != before+1 {
+		t.Fatalf("companies after re-import = %d", n)
+	}
+	// A status change in the import is logged like a PUT would log it.
+	body.Apps[0].Status = "screen"
+	do(t, h, "POST", "/api/import", body)
+	if n := events(); n != 2 {
+		t.Fatalf("events after status change = %d, want 2", n)
+	}
+}
+
+func TestImportRejectsInvalidRecordsAtomically(t *testing.T) {
+	s, h := newTestServer(t)
+	body := State{
+		Companies: []Company{{ID: "fine", Name: "Fine Co"}},
+		Apps:      []Application{{ID: "bad id!", Company: "Acme", Role: "SWE", Status: "applied"}},
+	}
+	if rec := do(t, h, "POST", "/api/import", body); rec.Code != 400 {
+		t.Fatalf("bad id: %d %s", rec.Code, rec.Body)
+	}
+	body.Apps[0].ID = "ok"
+	body.Apps[0].Status = "ghosted"
+	if rec := do(t, h, "POST", "/api/import", body); rec.Code != 400 {
+		t.Fatalf("unknown status: %d %s", rec.Code, rec.Body)
+	}
+	if n := count(t, s, `SELECT COUNT(*) FROM companies WHERE id = 'fine'`); n != 0 {
+		t.Fatal("a rejected import wrote the valid company anyway")
+	}
+}
+
+func TestExportImportRoundTrip(t *testing.T) {
+	_, h1 := newTestServer(t)
+	do(t, h1, "PUT", "/api/applications/acme", app("Acme", "SWE", "screen"))
+	do(t, h1, "PUT", "/api/companies/widgetco", Company{Name: "WidgetCo", Priority: "A"})
+	do(t, h1, "PUT", "/api/study", map[string]any{"done": map[string]bool{"w1-resume": true}})
+	exp := do(t, h1, "GET", "/api/export", nil)
+	if exp.Code != 200 {
+		t.Fatalf("export: %d", exp.Code)
+	}
+	want := getState(t, h1)
+
+	_, h2 := newTestServer(t)
+	if rec := do(t, h2, "POST", "/api/import", json.RawMessage(exp.Body.Bytes())); rec.Code != 200 {
+		t.Fatalf("import: %d %s", rec.Code, rec.Body)
+	}
+	got := getState(t, h2)
+	if len(got.Apps) != len(want.Apps) || len(got.Companies) != len(want.Companies) || len(got.Done) != len(want.Done) {
+		t.Fatalf("round trip mismatch: apps %d/%d companies %d/%d done %d/%d",
+			len(got.Apps), len(want.Apps), len(got.Companies), len(want.Companies), len(got.Done), len(want.Done))
+	}
+	if got.Apps[0].ID != "acme" || got.Apps[0].Status != "screen" || got.Apps[0].CreatedAt != want.Apps[0].CreatedAt {
+		t.Fatalf("app after round trip = %+v", got.Apps[0])
+	}
+}
