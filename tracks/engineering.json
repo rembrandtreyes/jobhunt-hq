@@ -1,0 +1,689 @@
+{
+  "id": "engineering",
+  "label": "Software engineering",
+  "sub": "Built for a full-time search: mornings on data structures and algorithms, afternoons on applications, system design, and behavioral practice.",
+  "weighting": "This track covers the three rounds most software engineering loops use, at any level: system design starts in week 2 on home turf and runs two cases a week from week 3; behavioral prep centers on ownership, collaboration, and measurable results; algorithms stay daily because most loops still open with a coding screen. Shift the mix toward your target role — more design for infrastructure and backend, more front-end fundamentals for UI roles, fewer design cases for early-career loops.",
+  "rulesTitle": "Problem rules",
+  "rules": "Set a 30-minute timer per problem. If you're stuck at 20 minutes, read the approach (not the code), then write it yourself. Log every problem's pattern in a notebook — the pattern is what transfers, not the problem.",
+  "focusLabels": [
+    "Algorithms",
+    "Design",
+    "Behavioral"
+  ],
+  "groups": [
+    "Launch",
+    "Algorithms",
+    "System design",
+    "Behavioral",
+    "Applications",
+    "Network",
+    "Mocks"
+  ],
+  "resources": [
+    {
+      "n": "NeetCode roadmap",
+      "u": "https://neetcode.io/roadmap",
+      "d": "Patterns in order; the 150 list is the study spine"
+    },
+    {
+      "n": "LeetCode",
+      "u": "https://leetcode.com/problemset/",
+      "d": "Timed practice; use company tags once interviews are scheduled"
+    },
+    {
+      "n": "Tech Interview Handbook",
+      "u": "https://www.techinterviewhandbook.org/",
+      "d": "Free and end to end: resume, algorithm cheat sheets, behavioral"
+    },
+    {
+      "n": "System Design Primer",
+      "u": "https://github.com/donnemartin/system-design-primer",
+      "d": "The free reference for design fundamentals and case studies"
+    },
+    {
+      "n": "Hello Interview",
+      "u": "https://www.hellointerview.com/",
+      "d": "System design walkthroughs at the level interviewers grade against"
+    },
+    {
+      "n": "interviewing.io",
+      "u": "https://interviewing.io/",
+      "d": "Anonymous mocks with working engineers; closest thing to the real loop"
+    },
+    {
+      "n": "levels.fyi",
+      "u": "https://www.levels.fyi/",
+      "d": "Comp by company and level, for targeting and negotiating"
+    },
+    {
+      "n": "Designing Data-Intensive Applications",
+      "u": "",
+      "d": "Kleppmann. Chapters 5–6 (replication, partitioning) are the high-yield ones"
+    }
+  ],
+  "schedule": [
+    {
+      "t": "8:30",
+      "d": "30 min",
+      "w": "Plan the day",
+      "h": "Open this page. Clear the follow-ups due, pick today's three target roles, choose the problem set.",
+      "c": ""
+    },
+    {
+      "t": "9:00",
+      "d": "2 hrs",
+      "w": "Algorithms deep work",
+      "h": "Three problems, 30 minutes each on a timer, then 15 minutes reviewing the optimal solution and logging the pattern.",
+      "c": "deep"
+    },
+    {
+      "t": "11:00",
+      "d": "15 min",
+      "w": "Break",
+      "h": "Walk. Screen off.",
+      "c": "rest"
+    },
+    {
+      "t": "11:15",
+      "d": "75 min",
+      "w": "Applications",
+      "h": "Three to five applications, each tailored: swap 2–3 resume bullets to match the posting. Log every one here before moving on.",
+      "c": "apply"
+    },
+    {
+      "t": "12:30",
+      "d": "1 hr",
+      "w": "Lunch",
+      "h": "Away from the desk.",
+      "c": "rest"
+    },
+    {
+      "t": "1:30",
+      "d": "1 hr",
+      "w": "Outreach",
+      "h": "Five messages: referrals, recruiters, alumni. Send every follow-up that is due today.",
+      "c": "apply"
+    },
+    {
+      "t": "2:30",
+      "d": "90 min",
+      "w": "",
+      "h": "",
+      "c": "deep",
+      "vary": true
+    },
+    {
+      "t": "4:00",
+      "d": "30 min",
+      "w": "Close the day",
+      "h": "Pattern flashcards, note what was hard, write tomorrow's three targets. Then stop — rest is part of the plan.",
+      "c": ""
+    }
+  ],
+  "afternoon": {
+    "1": {
+      "w": "System design case",
+      "h": "One case out loud, 40 minutes, then 30 minutes reading what you missed. Draw it — boxes, arrows, numbers."
+    },
+    "2": {
+      "w": "Behavioral practice",
+      "h": "STAR stories on a timer, recorded. Listen back for rambling and missing results. Then rehearse the project deep-dive."
+    },
+    "3": {
+      "w": "System design case",
+      "h": "One case out loud, 40 minutes, then 30 minutes reading what you missed. Draw it — boxes, arrows, numbers."
+    },
+    "4": {
+      "w": "Behavioral practice",
+      "h": "STAR stories on a timer, recorded. Listen back for rambling and missing results. Then rehearse the project deep-dive."
+    },
+    "5": {
+      "w": "Mock interview, then weekly retro",
+      "h": "Book a mock (coding and design on alternate weeks). At 4:00, retro: applications sent, response rate by source, what changes next week."
+    }
+  },
+  "weekend": {
+    "0": [
+      {
+        "t": "—",
+        "d": "",
+        "w": "Rest",
+        "h": "Set up Monday before bed: the week's target companies and problem list. Nothing else.",
+        "c": "rest"
+      }
+    ],
+    "6": [
+      {
+        "t": "—",
+        "d": "",
+        "w": "Light day",
+        "h": "One problem, one mock if it's scheduled, then rest.",
+        "c": "rest"
+      }
+    ]
+  },
+  "plan": [
+    {
+      "n": 1,
+      "theme": "Foundations & launch",
+      "targets": [
+        [
+          "applications",
+          10
+        ],
+        [
+          "problems",
+          12
+        ],
+        [
+          "design cases",
+          0
+        ],
+        [
+          "mocks",
+          0
+        ]
+      ],
+      "focus": [
+        "Big-O, arrays, strings, hashing, two pointers, sliding window",
+        "The system you know best, drawn and explained — the anchor story for every design round",
+        "Draft the STAR story bank"
+      ],
+      "items": [
+        {
+          "id": "w1-resume",
+          "g": "Launch",
+          "t": "Update your resume: tight, impact bullets with numbers, keywords matched to three target postings"
+        },
+        {
+          "id": "w1-linkedin",
+          "g": "Launch",
+          "t": "LinkedIn: new headline, rewritten About, Open to Work turned on, a short \"I'm looking\" post to your network"
+        },
+        {
+          "id": "w1-setup",
+          "g": "Launch",
+          "t": "Set this page up: start date and weekly goal in settings, first 10 companies on the Companies tab"
+        },
+        {
+          "id": "w1-dsa",
+          "g": "Algorithms",
+          "t": "12 problems: arrays & hashing (4), two pointers (4), sliding window (4) — 30-minute timer on each"
+        },
+        {
+          "id": "w1-notes",
+          "g": "Algorithms",
+          "t": "Start a pattern notebook: one page per pattern with template code, when it applies, and one gotcha"
+        },
+        {
+          "id": "w1-arch",
+          "g": "System design",
+          "t": "Write up the system you know best as a 10-minute deep dive with a diagram: what it does, the hard parts, the trade-offs — you will present this in most loops"
+        },
+        {
+          "id": "w1-stories",
+          "g": "Behavioral",
+          "t": "Write 8 STAR stories: a hard bug or incident, a project you drove end to end, working across teams, helping someone grow, disagreeing with a decision, a failure and what changed, ambiguity, your biggest measurable impact"
+        },
+        {
+          "id": "w1-apps",
+          "g": "Applications",
+          "t": "10 applications logged — warm-up roles you would say yes to today"
+        },
+        {
+          "id": "w1-network",
+          "g": "Network",
+          "t": "Message 5 former colleagues or managers: you're looking, what you want, would they refer you"
+        }
+      ]
+    },
+    {
+      "n": 2,
+      "theme": "Core structures",
+      "targets": [
+        [
+          "applications",
+          15
+        ],
+        [
+          "problems",
+          15
+        ],
+        [
+          "design cases",
+          1
+        ],
+        [
+          "mocks",
+          1
+        ]
+      ],
+      "focus": [
+        "Stacks, queues, linked lists, binary search, prefix sums",
+        "Web fundamentals refresher, then Case 0 on home turf: the system you know best",
+        "\"Tell me about yourself\" in 90 seconds; the \"why are you looking\" answer; what you're looking for"
+      ],
+      "items": [
+        {
+          "id": "w2-dsa",
+          "g": "Algorithms",
+          "t": "15 problems: stacks (3), linked lists (4), binary search (5), prefix sums (3)"
+        },
+        {
+          "id": "w2-redo",
+          "g": "Algorithms",
+          "t": "Re-solve every week-1 problem you missed, cold, without notes"
+        },
+        {
+          "id": "w2-sd",
+          "g": "System design",
+          "t": "Read the System Design Primer through the application layer; rewrite the key ideas in your own words"
+        },
+        {
+          "id": "w2-case",
+          "g": "System design",
+          "t": "Case 0: design the system you know best in 40 minutes — home turf, so use it to calibrate the structure: requirements → estimates → high-level → deep dive → trade-offs"
+        },
+        {
+          "id": "w2-beh",
+          "g": "Behavioral",
+          "t": "Record \"tell me about yourself\" and the \"why are you looking\" answer; listen back; cut to 90 seconds, neutral tone, forward-looking"
+        },
+        {
+          "id": "w2-apps",
+          "g": "Applications",
+          "t": "15 applications logged, each with 2–3 resume bullets tailored to the posting"
+        },
+        {
+          "id": "w2-network",
+          "g": "Network",
+          "t": "10 outreach messages: recruiters at target companies, alumni, ex-colleagues — ask for 15 minutes, not a job"
+        },
+        {
+          "id": "w2-mock",
+          "g": "Mocks",
+          "t": "One peer coding mock (a friend, interviewing.io, or a study group)"
+        }
+      ]
+    },
+    {
+      "n": 3,
+      "theme": "Trees & the design vocabulary",
+      "targets": [
+        [
+          "applications",
+          20
+        ],
+        [
+          "problems",
+          15
+        ],
+        [
+          "design cases",
+          2
+        ],
+        [
+          "mocks",
+          1
+        ]
+      ],
+      "focus": [
+        "Binary trees, BSTs, recursion, heaps and priority queues",
+        "Caching, databases (SQL vs NoSQL, indexes, replication), CAP and consistency",
+        "Deep-dive on your most complex project: architecture, trade-offs, what you would change"
+      ],
+      "items": [
+        {
+          "id": "w3-dsa",
+          "g": "Algorithms",
+          "t": "15 problems: tree traversals (5), BST (3), recursion (3), heaps (4)"
+        },
+        {
+          "id": "w3-timed",
+          "g": "Algorithms",
+          "t": "Timed set: 3 mixed problems in 90 minutes, no notes — the shape of a real phone screen"
+        },
+        {
+          "id": "w3-sd",
+          "g": "System design",
+          "t": "Study caching (cache-aside, write-through, eviction), indexing, replication, sharding — one page of notes each"
+        },
+        {
+          "id": "w3-case",
+          "g": "System design",
+          "t": "Case 1: URL shortener (35 minutes, whiteboard). Case 2: a metrics and logging pipeline — ingest, storage, query"
+        },
+        {
+          "id": "w3-beh",
+          "g": "Behavioral",
+          "t": "Prepare a 5-minute project deep-dive with a diagram; practice \"why that choice?\" three levels deep"
+        },
+        {
+          "id": "w3-apps",
+          "g": "Applications",
+          "t": "20 applications logged; follow up on everything from week 1 with no response"
+        },
+        {
+          "id": "w3-mock",
+          "g": "Mocks",
+          "t": "One coding mock; write down the three things that went worst"
+        }
+      ]
+    },
+    {
+      "n": 4,
+      "theme": "Graphs & scale",
+      "targets": [
+        [
+          "applications",
+          20
+        ],
+        [
+          "problems",
+          15
+        ],
+        [
+          "design cases",
+          2
+        ],
+        [
+          "mocks",
+          2
+        ]
+      ],
+      "focus": [
+        "Graphs: BFS, DFS, topological sort, union-find, Dijkstra",
+        "Load balancing, horizontal scaling, message queues, rate limiting, idempotency",
+        "Influencing without authority, taking hard feedback, prioritizing under constraint"
+      ],
+      "items": [
+        {
+          "id": "w4-dsa",
+          "g": "Algorithms",
+          "t": "15 problems: BFS/DFS on grids and graphs (7), topological sort (3), union-find (2), shortest paths (3)"
+        },
+        {
+          "id": "w4-impl",
+          "g": "Algorithms",
+          "t": "Implement BFS, DFS, Dijkstra, and union-find from memory in under 10 minutes each"
+        },
+        {
+          "id": "w4-cases",
+          "g": "System design",
+          "t": "Case 3: rate limiter. Case 4: a job scheduler / workflow orchestrator (state, retries, failure recovery). 40 minutes each"
+        },
+        {
+          "id": "w4-numbers",
+          "g": "System design",
+          "t": "Learn the numbers: latency table, QPS estimation, storage back-of-envelope — practice on both cases"
+        },
+        {
+          "id": "w4-beh",
+          "g": "Behavioral",
+          "t": "Add 3 more stories: a problem you solved under pressure, a change you drove across teams, someone you helped grow — every story ends with a measurable result"
+        },
+        {
+          "id": "w4-apps",
+          "g": "Applications",
+          "t": "20 applications logged, at least 5 through a referral"
+        },
+        {
+          "id": "w4-mock",
+          "g": "Mocks",
+          "t": "One coding mock + one system design mock"
+        }
+      ]
+    },
+    {
+      "n": 5,
+      "theme": "Dynamic programming & product-scale systems",
+      "targets": [
+        [
+          "applications",
+          20
+        ],
+        [
+          "problems",
+          15
+        ],
+        [
+          "design cases",
+          2
+        ],
+        [
+          "mocks",
+          2
+        ]
+      ],
+      "focus": [
+        "1-D and 2-D DP, memoization, knapsack, LIS / LCS, edit distance",
+        "News feed, chat: fan-out on read vs write, WebSockets, pub/sub, message ordering",
+        "Failure story polish: what you owned, what changed afterward"
+      ],
+      "items": [
+        {
+          "id": "w5-dsa",
+          "g": "Algorithms",
+          "t": "15 problems: 1-D DP (5), 2-D DP (4), knapsack-style (3), string DP (3)"
+        },
+        {
+          "id": "w5-recipe",
+          "g": "Algorithms",
+          "t": "Write the DP recipe in your notebook — state, transition, base case, order — and apply it to every problem this week"
+        },
+        {
+          "id": "w5-cases",
+          "g": "System design",
+          "t": "Case 5: news feed. Case 6: chat system. Explain fan-out trade-offs and message ordering"
+        },
+        {
+          "id": "w5-beh",
+          "g": "Behavioral",
+          "t": "Mock behavioral round with an experienced engineer or a friend who interviews: 6 questions in 30 minutes, feedback on scope, ownership, and rambling"
+        },
+        {
+          "id": "w5-apps",
+          "g": "Applications",
+          "t": "20 applications logged; review the tracker — which sources are converting to screens?"
+        },
+        {
+          "id": "w5-network",
+          "g": "Network",
+          "t": "Second-touch messages to everyone who replied in weeks 1–2; ask for intros"
+        },
+        {
+          "id": "w5-mock",
+          "g": "Mocks",
+          "t": "One coding mock (medium/hard) + one system design mock"
+        }
+      ]
+    },
+    {
+      "n": 6,
+      "theme": "Advanced patterns & storage systems",
+      "targets": [
+        [
+          "applications",
+          20
+        ],
+        [
+          "problems",
+          15
+        ],
+        [
+          "design cases",
+          2
+        ],
+        [
+          "mocks",
+          2
+        ]
+      ],
+      "focus": [
+        "Backtracking, greedy, intervals, tries, bit manipulation",
+        "File storage, typeahead search, key-value store, distributed cache",
+        "Ownership signals: mentoring, raising the bar, disagree-and-commit"
+      ],
+      "items": [
+        {
+          "id": "w6-dsa",
+          "g": "Algorithms",
+          "t": "15 problems: backtracking (4), greedy (3), intervals (4), tries (2), bits (2)"
+        },
+        {
+          "id": "w6-timed",
+          "g": "Algorithms",
+          "t": "Timed set: 4 problems in 2 hours (two easy, two medium) — onsite pace"
+        },
+        {
+          "id": "w6-cases",
+          "g": "System design",
+          "t": "Case 7: file storage. Case 8: notification system. Draw data flow, storage schema, and the failure modes"
+        },
+        {
+          "id": "w6-read",
+          "g": "System design",
+          "t": "Read DDIA chapters 5–6 (replication, partitioning) or the Primer's equivalents"
+        },
+        {
+          "id": "w6-beh",
+          "g": "Behavioral",
+          "t": "Tailor your top 5 stories to each company with active interviews — their values, their language"
+        },
+        {
+          "id": "w6-apps",
+          "g": "Applications",
+          "t": "20 applications logged; drop the sources that never convert"
+        },
+        {
+          "id": "w6-mock",
+          "g": "Mocks",
+          "t": "Two mocks: one coding, one system design; track the score trend"
+        }
+      ]
+    },
+    {
+      "n": 7,
+      "theme": "Interview-ready",
+      "targets": [
+        [
+          "applications",
+          15
+        ],
+        [
+          "problems",
+          20
+        ],
+        [
+          "design cases",
+          2
+        ],
+        [
+          "mocks",
+          4
+        ]
+      ],
+      "focus": [
+        "Mixed timed review of every pattern so far, weighted toward your weakest",
+        "Ride-sharing dispatch, payments (idempotency, ledgers), observability and on-call",
+        "Company-specific prep: values, recent news, questions to ask each interviewer"
+      ],
+      "items": [
+        {
+          "id": "w7-dsa",
+          "g": "Algorithms",
+          "t": "20 problems from Blind 75 / NeetCode 150 you haven't done, random order, timed"
+        },
+        {
+          "id": "w7-redo",
+          "g": "Algorithms",
+          "t": "Re-solve your 10 worst problems from weeks 1–6 cold"
+        },
+        {
+          "id": "w7-cases",
+          "g": "System design",
+          "t": "Case 9: ride-sharing dispatch. Case 10: payment system (idempotency, ledgers). Present in 40 minutes: requirements → estimates → high-level → deep dive → trade-offs"
+        },
+        {
+          "id": "w7-beh",
+          "g": "Behavioral",
+          "t": "For every active loop: 3 questions per interviewer, a one-line \"why this team\", and your leveling case — the evidence for the level you are targeting"
+        },
+        {
+          "id": "w7-apps",
+          "g": "Applications",
+          "t": "15 applications logged; every stale pipeline item gets a follow-up or gets closed"
+        },
+        {
+          "id": "w7-mock",
+          "g": "Mocks",
+          "t": "Full mock loop in one day: 2 coding + 1 design + 1 behavioral"
+        }
+      ]
+    },
+    {
+      "n": 8,
+      "theme": "Close & decide",
+      "targets": [
+        [
+          "applications",
+          0
+        ],
+        [
+          "problems",
+          7
+        ],
+        [
+          "design cases",
+          0
+        ],
+        [
+          "mocks",
+          1
+        ]
+      ],
+      "focus": [
+        "Maintenance: one problem a day on your weakest patterns",
+        "Only what active loops need",
+        "Negotiation: comp research, competing offers, the \"thanks, I need a few days\" script"
+      ],
+      "items": [
+        {
+          "id": "w8-dsa",
+          "g": "Algorithms",
+          "t": "7 problems, one per day, on the patterns you missed in the mock loop"
+        },
+        {
+          "id": "w8-comp",
+          "g": "Behavioral",
+          "t": "Research comp bands on levels.fyi for each active company and level; write your target and walk-away numbers"
+        },
+        {
+          "id": "w8-nego",
+          "g": "Behavioral",
+          "t": "Practice the negotiation conversation out loud: ask for time, anchor on data, ask about sign-on and equity"
+        },
+        {
+          "id": "w8-tracker",
+          "g": "Applications",
+          "t": "Re-read the tracker: close everything dead, follow up on everything alive"
+        },
+        {
+          "id": "w8-decide",
+          "g": "Applications",
+          "t": "Decide: accept, negotiate, or set up weeks 9–12 (same plan, heavier on referrals and mocks)"
+        },
+        {
+          "id": "w8-mock",
+          "g": "Mocks",
+          "t": "One last full mock loop if an onsite is scheduled"
+        },
+        {
+          "id": "w8-retro",
+          "g": "Launch",
+          "t": "Write a one-page retro: what worked, conversion rates by source, what you would do differently"
+        }
+      ]
+    }
+  ]
+}

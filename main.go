@@ -14,6 +14,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 	"regexp"
@@ -81,7 +82,6 @@ type State struct {
 var (
 	idRe     = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 	statuses = map[string]bool{"saved": true, "applied": true, "screen": true, "technical": true, "onsite": true, "offer": true, "rejected": true, "withdrawn": true}
-	tracks   = map[string]bool{"general": true, "engineering": true}
 )
 
 const schema = `
@@ -134,7 +134,11 @@ CREATE TABLE IF NOT EXISTS settings (
 
 // ---------- server ----------
 
-type server struct{ db *sql.DB }
+type server struct {
+	db     *sql.DB
+	tracks *trackSet // study tracks from tracks/*.json, validated at startup
+	page   []byte    // web/index.html with the tracks JSON injected
+}
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:8787", "address to listen on")
@@ -152,7 +156,15 @@ func main() {
 
 // newServer opens (creating if needed) the SQLite database at dbPath,
 // applies the schema, and seeds it on first run. The caller owns s.db.
-func newServer(dbPath string) (*server, error) {
+func newServer(dbPath string) (*server, error) { return newServerFS(dbPath, trackFiles) }
+
+// newServerFS is newServer with the study tracks read from fsys (tests pass
+// a synthetic one to try out a contributed track).
+func newServerFS(dbPath string, fsys fs.FS) (*server, error) {
+	tracks, err := loadTracks(fsys, "tracks")
+	if err != nil {
+		return nil, err
+	}
 	db, err := sql.Open("sqlite3", "file:"+dbPath+"?_pragma=journal_mode(wal)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)")
 	if err != nil {
 		return nil, err
@@ -162,7 +174,7 @@ func newServer(dbPath string) (*server, error) {
 		db.Close()
 		return nil, fmt.Errorf("schema: %w", err)
 	}
-	s := &server{db: db}
+	s := &server{db: db, tracks: tracks, page: renderPage(indexHTML, tracks)}
 	if err := s.seedIfEmpty(); err != nil {
 		db.Close()
 		return nil, fmt.Errorf("seed: %w", err)
@@ -176,7 +188,11 @@ func (s *server) routes() http.Handler {
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Cache-Control", "no-store")
-		w.Write(indexHTML)
+		w.Write(s.page)
+	})
+	mux.HandleFunc("GET /api/tracks", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(s.tracks.json)
 	})
 	mux.HandleFunc("GET /api/state", s.handleState)
 	mux.HandleFunc("GET /api/export", s.handleState)
@@ -497,7 +513,7 @@ func (s *server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		httpError(w, 400, "weeklyGoal out of range")
 		return
 	}
-	if in.Track != "" && !tracks[in.Track] {
+	if in.Track != "" && !s.tracks.has(in.Track) {
 		httpError(w, 400, "unknown track "+in.Track)
 		return
 	}
@@ -575,8 +591,8 @@ func (s *server) handleImport(w http.ResponseWriter, r *http.Request) {
 		httpError(w, 400, "settings.weeklyGoal out of range")
 		return
 	}
-	if in.Settings.Track != "" && !tracks[in.Settings.Track] {
-		httpError(w, 400, "settings.track must be general or engineering")
+	if in.Settings.Track != "" && !s.tracks.has(in.Settings.Track) {
+		httpError(w, 400, "settings.track: unknown track "+in.Settings.Track)
 		return
 	}
 
