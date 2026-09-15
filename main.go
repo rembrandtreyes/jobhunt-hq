@@ -139,19 +139,37 @@ func main() {
 	dbPath := flag.String("db", "hq.db", "path to the SQLite database file (created on first run)")
 	flag.Parse()
 
-	db, err := sql.Open("sqlite3", "file:"+*dbPath+"?_pragma=journal_mode(wal)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)")
+	s, err := newServer(*dbPath)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Printf("Job Hunt HQ  →  http://%s   (database: %s)", *addr, *dbPath)
+	log.Fatal(http.ListenAndServe(*addr, logRequests(s.routes())))
+}
+
+// newServer opens (creating if needed) the SQLite database at dbPath,
+// applies the schema, and seeds it on first run. The caller owns s.db.
+func newServer(dbPath string) (*server, error) {
+	db, err := sql.Open("sqlite3", "file:"+dbPath+"?_pragma=journal_mode(wal)&_pragma=busy_timeout(5000)&_pragma=foreign_keys(1)")
+	if err != nil {
+		return nil, err
+	}
 	db.SetMaxOpenConns(1) // one writer, no contention; plenty for one person
 	if _, err := db.Exec(schema); err != nil {
-		log.Fatal("schema: ", err)
+		db.Close()
+		return nil, fmt.Errorf("schema: %w", err)
 	}
 	s := &server{db: db}
 	if err := s.seedIfEmpty(); err != nil {
-		log.Fatal("seed: ", err)
+		db.Close()
+		return nil, fmt.Errorf("seed: %w", err)
 	}
+	return s, nil
+}
 
+// routes returns the page + API handler (without request logging).
+func (s *server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -166,9 +184,7 @@ func main() {
 	mux.HandleFunc("DELETE /api/companies/{id}", s.handleDeleteCompany)
 	mux.HandleFunc("PUT /api/study", s.handlePutStudy)
 	mux.HandleFunc("PUT /api/settings", s.handlePutSettings)
-
-	log.Printf("Job Hunt HQ  →  http://%s   (database: %s)", *addr, *dbPath)
-	log.Fatal(http.ListenAndServe(*addr, logRequests(mux)))
+	return mux
 }
 
 func logRequests(next http.Handler) http.Handler {
