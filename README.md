@@ -13,7 +13,7 @@ Four tabs on one page:
 - **Today** — day and week counter for your search, weekly stats (applied vs. goal, pipeline, interviewing, follow-ups due), a weekday block schedule, and this week's study focus.
 - **Applications** — the tracker. Each application moves through `saved → applied → screen → technical → onsite → offer` (or `rejected` / `withdrawn`). Every status change is logged, so you can see which sources actually convert.
 - **Study plan** — an 8-week interview-prep checklist for software engineers (algorithms, system design, behavioral, applications, outreach, mocks). Progress is saved per item.
-- **Companies** — 41 engineering employers to start from, each with a live job board. See below.
+- **Companies** — 95 engineering employers to start from, each with a live job board. See below.
 
 Everything is stored locally. Export a JSON backup any time and import it on another machine.
 
@@ -45,7 +45,7 @@ The server has **no authentication** and is meant for one person on one machine.
 
 ## What's seeded on first run
 
-The first run loads `seed.json`: **41 companies that were hiring software, backend, frontend, and DevOps/SRE engineers on 2026-09-15**, chosen because their job boards (Greenhouse, Lever, or Ashby) expose a public feed. It is sample data generated from those feeds, not anyone's application list, and the counts go stale. For each one:
+The first run loads `seed.json`: **95 companies that were hiring software, backend, frontend, and DevOps/SRE engineers on 2026-09-15**, chosen because their job boards (Greenhouse, Lever, or Ashby) expose a public feed. It is sample data generated from those feeds, not anyone's application list, and the counts go stale. For each one:
 
 - **Priority** A / B / C is set by how many engineering roles were open on 2026-09-15 (A = 100 or more, B = 20 or more, C = fewer). Re-rank them for yourself; it's your list.
 - **Why** and **Signal** summarize that day's board: how many engineering roles, how many remote, the most-listed location.
