@@ -768,6 +768,7 @@
   }
   // Week focus: settings.focus is {labels?: [..], weeks?: {"1": [..]}}; whatever is missing comes from the track.
   function resolveFocus(tr, custom, w) {
+    if (custom && custom.track && custom.track !== tr.id) custom = null; // written for another track: kept, not shown
     const labels = custom && custom.labels && custom.labels.length ? custom.labels : (tr.focusLabels || []);
     const lines = custom && custom.weeks && custom.weeks[w.n] ? custom.weeks[w.n] : (w.focus || []);
     return { labels, lines, custom: !!(custom && ((custom.labels && custom.labels.length) || (custom.weeks && custom.weeks[w.n]))) };
@@ -801,6 +802,24 @@
     if (!out.labels.length) delete out.labels;
     if (!Object.keys(out.weeks).length) delete out.weeks;
     if (!out.labels && !out.weeks) throw new Error('Nothing to save. Start with "# Labels" or "# Week 1".');
+    return out;
+  }
+  // Drop what equals the track so untouched parts keep following it; null when nothing custom is left.
+  function pruneSchedule(tr, parsed) {
+    const out = {};
+    Object.keys(parsed).forEach(k => { if (k === 'weekday' || !sameBlocks(parsed[k], trackDay(tr, DAY_KEYS.indexOf(k)))) out[k] = parsed[k]; });
+    return Object.keys(out).length ? out : null;
+  }
+  function pruneFocus(tr, parsed) {
+    const out = {};
+    if (parsed.labels && !sameLines(parsed.labels, tr.focusLabels || [])) out.labels = parsed.labels;
+    if (parsed.weeks) {
+      const weeks = {};
+      Object.keys(parsed.weeks).forEach(n => { const w = (tr.plan || []).find(x => String(x.n) === n); if (!w || !sameLines(parsed.weeks[n], w.focus || [])) weeks[n] = parsed.weeks[n]; });
+      if (Object.keys(weeks).length) out.weeks = weeks;
+    }
+    if (!out.labels && !out.weeks) return null;
+    out.track = tr.id; // a focus belongs to the track it was written for
     return out;
   }
   /* ---------- /customization ---------- */
@@ -1251,14 +1270,7 @@
   async function saveFocus() {
     let parsed;
     try { parsed = parseFocusText($('#focus-text').value); } catch (e) { toast(e.message); return; }
-    // Labels and weeks identical to the track's stay with the track.
-    const tr = track();
-    if (parsed.labels && sameLines(parsed.labels, tr.focusLabels || [])) delete parsed.labels;
-    if (parsed.weeks) {
-      (tr.plan || []).forEach(w => { if (parsed.weeks[w.n] && sameLines(parsed.weeks[w.n], w.focus || [])) delete parsed.weeks[w.n]; });
-      if (!Object.keys(parsed.weeks).length) delete parsed.weeks;
-    }
-    const value = parsed.labels || parsed.weeks ? parsed : null;
+    const value = pruneFocus(track(), parsed);
     if (await saveGuard(() => store.saveSettings({ focus: value }), value ? 'Focus saved' : 'Same as the track — nothing custom to save')) { closeEditors(); renderToday(); }
   }
   async function resetFocus() {
@@ -1271,10 +1283,7 @@
   async function saveSchedule() {
     let parsed;
     try { parsed = parseScheduleText($('#sched-text').value); } catch (e) { toast(e.message); return; }
-    // Days identical to the track's stay with the track, so a later track update still reaches them.
-    const tr = track();
-    Object.keys(parsed).forEach(k => { if (k !== 'weekday' && sameBlocks(parsed[k], trackDay(tr, DAY_KEYS.indexOf(k)))) delete parsed[k]; });
-    const value = Object.keys(parsed).length ? parsed : null;
+    const value = pruneSchedule(track(), parsed);
     if (await saveGuard(() => store.saveSettings({ schedule: value }), value ? 'Schedule saved' : 'Same as the track — nothing custom to save')) { closeEditors(); renderToday(); }
   }
   async function resetSchedule() {

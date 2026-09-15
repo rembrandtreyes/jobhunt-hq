@@ -90,6 +90,7 @@ func validateSchedule(raw json.RawMessage) (json.RawMessage, error) {
 // focus is the user's week-focus override: new labels for the focus rows
 // and/or the lines for particular weeks. Missing parts come from the track.
 type focus struct {
+	Track  string              `json:"track,omitempty"` // the track this was written for; the page applies it only there
 	Labels []string            `json:"labels,omitempty"`
 	Weeks  map[string][]string `json:"weeks,omitempty"` // "1".."12" → one line per label
 }
@@ -102,7 +103,8 @@ const (
 )
 
 // validateFocus checks a user focus and returns it in canonical form.
-func validateFocus(raw json.RawMessage) (json.RawMessage, error) {
+// hasTrack says whether a track id is loaded.
+func validateFocus(raw json.RawMessage, hasTrack func(string) bool) (json.RawMessage, error) {
 	if len(raw) > maxCustomBytes {
 		return nil, fmt.Errorf("focus: too large")
 	}
@@ -111,6 +113,9 @@ func validateFocus(raw json.RawMessage) (json.RawMessage, error) {
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&f); err != nil {
 		return nil, fmt.Errorf("focus: %v", err)
+	}
+	if f.Track != "" && !hasTrack(f.Track) {
+		return nil, fmt.Errorf("focus: unknown track %q", f.Track)
 	}
 	if len(f.Labels) == 0 && len(f.Weeks) == 0 {
 		return nil, fmt.Errorf("focus: nothing to save; send null to go back to the track default")
@@ -151,30 +156,30 @@ type customWrite struct {
 
 // validateCustom checks the optional customization fields of a settings
 // body and returns the writes to apply. It runs before any transaction so a
-// bad field rejects the whole request.
-func validateCustom(in Settings) ([]customWrite, error) {
-	fields := []struct {
-		key      string
-		raw      json.RawMessage
-		validate func(json.RawMessage) (json.RawMessage, error)
-	}{
-		{"schedule", in.Schedule, validateSchedule},
-		{"focus", in.Focus, validateFocus},
-	}
+// bad field rejects the whole request. hasTrack says whether a track id is
+// loaded (a focus override names the track it was written for).
+func validateCustom(in Settings, hasTrack func(string) bool) ([]customWrite, error) {
 	var writes []customWrite
-	for _, f := range fields {
-		if len(f.raw) == 0 {
-			continue
+	add := func(key string, raw json.RawMessage, validate func(json.RawMessage) (json.RawMessage, error)) error {
+		if len(raw) == 0 {
+			return nil
 		}
-		if isNull(f.raw) {
-			writes = append(writes, customWrite{key: f.key, clear: true})
-			continue
+		if isNull(raw) {
+			writes = append(writes, customWrite{key: key, clear: true})
+			return nil
 		}
-		v, err := f.validate(f.raw)
+		v, err := validate(raw)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		writes = append(writes, customWrite{key: f.key, value: v})
+		writes = append(writes, customWrite{key: key, value: v})
+		return nil
+	}
+	if err := add("schedule", in.Schedule, validateSchedule); err != nil {
+		return nil, err
+	}
+	if err := add("focus", in.Focus, func(raw json.RawMessage) (json.RawMessage, error) { return validateFocus(raw, hasTrack) }); err != nil {
+		return nil, err
 	}
 	return writes, nil
 }

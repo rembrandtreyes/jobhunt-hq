@@ -76,9 +76,9 @@ Your 90-second intro, recorded and timed
 Six common questions for your role, answered out loud
 ```
 
-Weeks you leave out keep the track's lines. The Study tab uses the same labels and lines.
+Weeks you leave out keep the track's lines. The Study tab uses the same labels and lines. A focus belongs to the track you wrote it on: switch tracks and you see that track's own focus; switch back and yours is there again. Your schedule is yours on every track.
 
-Both are stored in your database as settings and travel with export/import. Switching tracks keeps them.
+Both are stored in your database as settings and travel with export/import. Saving without changing anything stores nothing, so an untouched day or week keeps following the track when the track is updated.
 
 **Adding a study track.** A track is one file in `tracks/`, for example `tracks/sales.json`, with the same shape as `tracks/general.json`: `id` (equal to the filename), `label`, `sub`, `weighting`, `rulesTitle`, `rules`, `focusLabels`, `groups`, `resources`, `schedule`, `afternoon`, `weekend`, and `plan` (eight weeks, each with `theme`, `targets`, `focus` lines matching `focusLabels`, and `items` with stable ids). Item ids are progress keys and must be unique across all tracks, so pick a prefix for yours (`s1-accounts`, `s1-intro`, …). `go test ./...` checks all of that and names the problem; `go run .` then shows the track in settings.
 

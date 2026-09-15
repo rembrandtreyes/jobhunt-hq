@@ -523,7 +523,7 @@ func (s *server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		httpError(w, 400, "unknown track "+in.Track)
 		return
 	}
-	custom, err := validateCustom(in)
+	custom, err := validateCustom(in, s.tracks.has)
 	if err != nil {
 		httpError(w, 400, err.Error())
 		return
@@ -610,7 +610,7 @@ func (s *server) handleImport(w http.ResponseWriter, r *http.Request) {
 		httpError(w, 400, "settings.track: unknown track "+in.Settings.Track)
 		return
 	}
-	custom, err := validateCustom(in.Settings)
+	custom, err := validateCustom(in.Settings, s.tracks.has)
 	if err != nil {
 		httpError(w, 400, "settings."+err.Error())
 		return

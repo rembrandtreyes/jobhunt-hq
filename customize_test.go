@@ -205,6 +205,7 @@ func TestScheduleProperty_AcceptedAndCanonical(t *testing.T) {
 // ---------- focus ----------
 
 var sampleFocus = focus{
+	Track:  "general",
 	Labels: []string{"Pipeline", "Story", "Practice"},
 	Weeks:  map[string][]string{"1": {"Twenty target accounts", "The 90-second intro", "Record three answers"}, "3": {}},
 }
@@ -247,6 +248,7 @@ func TestFocusValidation(t *testing.T) {
 		want string
 	}{
 		{"unknown key", map[string]any{"labels": []string{"A"}, "theme": "x"}, "unknown field"},
+		{"unknown track", map[string]any{"track": "pilot", "labels": []string{"A"}}, "unknown track"},
 		{"week 13", map[string]any{"weeks": map[string]any{"13": []string{"x"}}}, "must be 1 to 12"},
 		{"week 0", map[string]any{"weeks": map[string]any{"0": []string{"x"}}}, "must be 1 to 12"},
 		{"week 01", map[string]any{"weeks": map[string]any{"01": []string{"x"}}}, "must be 1 to 12"},
@@ -298,6 +300,7 @@ type validFocus focus
 
 func (validFocus) Generate(r *rand.Rand, _ int) reflect.Value {
 	var f validFocus
+	f.Track = []string{"", "general", "engineering"}[r.Intn(3)]
 	for len(f.Labels) == 0 && len(f.Weeks) == 0 {
 		if n := r.Intn(maxFocusLabels + 1); n > 0 {
 			f.Labels = make([]string, n)
@@ -323,15 +326,15 @@ func (validFocus) Generate(r *rand.Rand, _ int) reflect.Value {
 }
 
 func TestFocusProperty_AcceptedAndCanonical(t *testing.T) {
-	_, h := newTestServer(t)
+	s, h := newTestServer(t)
 	prop := func(f validFocus) bool {
 		raw, _ := json.Marshal(f)
-		canon, err := validateFocus(raw)
+		canon, err := validateFocus(raw, s.tracks.has)
 		if err != nil {
 			t.Logf("rejected valid focus: %v", err)
 			return false
 		}
-		again, err := validateFocus(canon)
+		again, err := validateFocus(canon, s.tracks.has)
 		if err != nil || !bytes.Equal(canon, again) {
 			t.Logf("not idempotent: %v", err)
 			return false
