@@ -1342,7 +1342,7 @@
   /* ---------- global events ---------- */
   document.addEventListener('click', ev => {
     const t = ev.target.closest('[data-tab],[data-action],[data-edit],[data-edit-company],[data-filter],[data-toggle-week]');
-    if (!t) { if (!pop.hidden && !ev.target.closest('#settings-pop') && ev.target !== setBtn) closeSettings(); return; }
+    if (!t) { if (!pop.hidden && !ev.target.closest('#settings-pop') && !setBtn.contains(ev.target)) closeSettings(); return; }
     if (t.dataset.tab) { renderTab(t.dataset.tab); window.scrollTo({ top: 0 }); return; }
     if (t.dataset.action === 'add-app') return openApp(null);
     if (t.dataset.action === 'add-company') return openCompany(null);
