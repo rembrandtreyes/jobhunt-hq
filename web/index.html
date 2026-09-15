@@ -519,7 +519,7 @@
     <div class="howto">
       <p><b>How to run it.</b> Each week has a checklist. Check things off as you finish them; progress is saved. The current week is highlighted and its focus shows up on the Today tab.</p>
       <p><b>Problem rules.</b> Set a 30-minute timer per problem. If you're stuck at 20 minutes, read the approach (not the code), then write it yourself. Log every problem's pattern in a notebook — the pattern is what transfers, not the problem.</p>
-      <p><b>Weighting.</b> This plan is tuned for senior and staff platform / AI-infrastructure loops: system design starts in week 2 on home turf and runs two cases a week from week 3, and behavioral prep centers on leadership signals — ownership, cross-team influence, incident leadership, mentoring. Algorithms stay daily because most loops still open with a coding screen.</p>
+      <p><b>Weighting.</b> This plan covers the three rounds most software engineering loops use, at any level: system design starts in week 2 on home turf and runs two cases a week from week 3; behavioral prep centers on ownership, collaboration, and measurable results; algorithms stay daily because most loops still open with a coding screen. Shift the mix toward your target role — more design for infrastructure and backend, more front-end fundamentals for UI roles, fewer design cases for early-career loops.</p>
     </div>
 
     <div class="weeks" id="weeks"></div>
@@ -665,29 +665,29 @@
   const PLAN = [
     { n: 1, theme: 'Foundations & launch', targets: { apps: 10, problems: 12, cases: 0, mocks: 0 },
       dsa: 'Big-O, arrays, strings, hashing, two pointers, sliding window',
-      sd: 'Your own architecture, drawn and explained — the anchor story for every senior loop',
-      beh: 'Draft the STAR story bank with a leadership lens',
+      sd: 'The system you know best, drawn and explained — the anchor story for every design round',
+      beh: 'Draft the STAR story bank',
       items: [
-        { id: 'w1-resume', g: 'Launch', t: 'Finalize resume v2: one page, impact bullets with numbers, keywords matched to three target postings' },
+        { id: 'w1-resume', g: 'Launch', t: 'Update your resume: tight, impact bullets with numbers, keywords matched to three target postings' },
         { id: 'w1-linkedin', g: 'Launch', t: 'LinkedIn: new headline, rewritten About, Open to Work turned on, a short "I\'m looking" post to your network' },
         { id: 'w1-setup', g: 'Launch', t: 'Set this page up: start date and weekly goal in settings, first 10 companies on the Companies tab' },
         { id: 'w1-dsa', g: 'Algorithms', t: '12 problems: arrays & hashing (4), two pointers (4), sliding window (4) — 30-minute timer on each' },
         { id: 'w1-notes', g: 'Algorithms', t: 'Start a pattern notebook: one page per pattern with template code, when it applies, and one gotcha' },
-        { id: 'w1-arch', g: 'System design', t: 'Write up the system you know best (the multi-tenant platform: tenancy, networking, autoscaling, observability) as a 10-minute deep dive with a diagram — you will present this in every senior loop' },
-        { id: 'w1-stories', g: 'Behavioral', t: 'Write 8 STAR stories with a leadership lens: leading an incident, driving a cross-team rollout, a cost or security initiative you owned, mentoring, disagreeing with a decision, a failure and what changed, ambiguity, biggest measurable impact' },
+        { id: 'w1-arch', g: 'System design', t: 'Write up the system you know best as a 10-minute deep dive with a diagram: what it does, the hard parts, the trade-offs — you will present this in most loops' },
+        { id: 'w1-stories', g: 'Behavioral', t: 'Write 8 STAR stories: a hard bug or incident, a project you drove end to end, working across teams, helping someone grow, disagreeing with a decision, a failure and what changed, ambiguity, your biggest measurable impact' },
         { id: 'w1-apps', g: 'Applications', t: '10 applications logged — warm-up roles you would say yes to today' },
         { id: 'w1-network', g: 'Network', t: 'Message 5 former colleagues or managers: you\'re looking, what you want, would they refer you' }
       ] },
     { n: 2, theme: 'Core structures', targets: { apps: 15, problems: 15, cases: 1, mocks: 1 },
       dsa: 'Stacks, queues, linked lists, binary search, prefix sums',
-      sd: 'Web fundamentals refresher, then Case 0 on home turf: a multi-tenant Kubernetes platform',
-      beh: '"Tell me about yourself" in 90 seconds; the layoff answer; what you\'re looking for',
+      sd: 'Web fundamentals refresher, then Case 0 on home turf: the system you know best',
+      beh: '"Tell me about yourself" in 90 seconds; the "why are you looking" answer; what you\'re looking for',
       items: [
         { id: 'w2-dsa', g: 'Algorithms', t: '15 problems: stacks (3), linked lists (4), binary search (5), prefix sums (3)' },
         { id: 'w2-redo', g: 'Algorithms', t: 'Re-solve every week-1 problem you missed, cold, without notes' },
         { id: 'w2-sd', g: 'System design', t: 'Read the System Design Primer through the application layer; rewrite the key ideas in your own words' },
-        { id: 'w2-case', g: 'System design', t: 'Case 0: design a multi-tenant Kubernetes platform (tenancy, isolation, autoscaling, cost, observability) in 40 minutes — home turf, so use it to calibrate the structure: requirements → estimates → high-level → deep dive → trade-offs' },
-        { id: 'w2-beh', g: 'Behavioral', t: 'Record "tell me about yourself" and the layoff answer; listen back; cut to 90 seconds, neutral tone, forward-looking' },
+        { id: 'w2-case', g: 'System design', t: 'Case 0: design the system you know best in 40 minutes — home turf, so use it to calibrate the structure: requirements → estimates → high-level → deep dive → trade-offs' },
+        { id: 'w2-beh', g: 'Behavioral', t: 'Record "tell me about yourself" and the "why are you looking" answer; listen back; cut to 90 seconds, neutral tone, forward-looking' },
         { id: 'w2-apps', g: 'Applications', t: '15 applications logged, each with 2–3 resume bullets tailored to the posting' },
         { id: 'w2-network', g: 'Network', t: '10 outreach messages: recruiters at target companies, alumni, ex-colleagues — ask for 15 minutes, not a job' },
         { id: 'w2-mock', g: 'Mocks', t: 'One peer coding mock (a friend, interviewing.io, or a study group)' }
@@ -700,7 +700,7 @@
         { id: 'w3-dsa', g: 'Algorithms', t: '15 problems: tree traversals (5), BST (3), recursion (3), heaps (4)' },
         { id: 'w3-timed', g: 'Algorithms', t: 'Timed set: 3 mixed problems in 90 minutes, no notes — the shape of a real phone screen' },
         { id: 'w3-sd', g: 'System design', t: 'Study caching (cache-aside, write-through, eviction), indexing, replication, sharding — one page of notes each' },
-        { id: 'w3-case', g: 'System design', t: 'Case 1: URL shortener (35 minutes, whiteboard). Case 2: a metrics and logging pipeline — ingest, storage, query — an observability system you can speak to from experience' },
+        { id: 'w3-case', g: 'System design', t: 'Case 1: URL shortener (35 minutes, whiteboard). Case 2: a metrics and logging pipeline — ingest, storage, query' },
         { id: 'w3-beh', g: 'Behavioral', t: 'Prepare a 5-minute project deep-dive with a diagram; practice "why that choice?" three levels deep' },
         { id: 'w3-apps', g: 'Applications', t: '20 applications logged; follow up on everything from week 1 with no response' },
         { id: 'w3-mock', g: 'Mocks', t: 'One coding mock; write down the three things that went worst' }
@@ -712,9 +712,9 @@
       items: [
         { id: 'w4-dsa', g: 'Algorithms', t: '15 problems: BFS/DFS on grids and graphs (7), topological sort (3), union-find (2), shortest paths (3)' },
         { id: 'w4-impl', g: 'Algorithms', t: 'Implement BFS, DFS, Dijkstra, and union-find from memory in under 10 minutes each' },
-        { id: 'w4-cases', g: 'System design', t: 'Case 3: rate limiter. Case 4: a distributed agent / workflow orchestrator (state, retries, failure recovery) — present your own framework as a design. 40 minutes each' },
+        { id: 'w4-cases', g: 'System design', t: 'Case 3: rate limiter. Case 4: a job scheduler / workflow orchestrator (state, retries, failure recovery). 40 minutes each' },
         { id: 'w4-numbers', g: 'System design', t: 'Learn the numbers: latency table, QPS estimation, storage back-of-envelope — practice on both cases' },
-        { id: 'w4-beh', g: 'Behavioral', t: 'Add 3 leadership stories: an incident you ran, a migration or security rollout you drove across teams, someone you mentored — every story ends with a measurable result' },
+        { id: 'w4-beh', g: 'Behavioral', t: 'Add 3 more stories: a problem you solved under pressure, a change you drove across teams, someone you helped grow — every story ends with a measurable result' },
         { id: 'w4-apps', g: 'Applications', t: '20 applications logged, at least 5 through a referral' },
         { id: 'w4-mock', g: 'Mocks', t: 'One coding mock + one system design mock' }
       ] },
@@ -726,7 +726,7 @@
         { id: 'w5-dsa', g: 'Algorithms', t: '15 problems: 1-D DP (5), 2-D DP (4), knapsack-style (3), string DP (3)' },
         { id: 'w5-recipe', g: 'Algorithms', t: 'Write the DP recipe in your notebook — state, transition, base case, order — and apply it to every problem this week' },
         { id: 'w5-cases', g: 'System design', t: 'Case 5: news feed. Case 6: chat system. Explain fan-out trade-offs and message ordering' },
-        { id: 'w5-beh', g: 'Behavioral', t: 'Mock behavioral round with a senior or staff engineer: 6 questions in 30 minutes, feedback on scope, ownership, and rambling' },
+        { id: 'w5-beh', g: 'Behavioral', t: 'Mock behavioral round with an experienced engineer or a friend who interviews: 6 questions in 30 minutes, feedback on scope, ownership, and rambling' },
         { id: 'w5-apps', g: 'Applications', t: '20 applications logged; review the tracker — which sources are converting to screens?' },
         { id: 'w5-network', g: 'Network', t: 'Second-touch messages to everyone who replied in weeks 1–2; ask for intros' },
         { id: 'w5-mock', g: 'Mocks', t: 'One coding mock (medium/hard) + one system design mock' }
@@ -734,7 +734,7 @@
     { n: 6, theme: 'Advanced patterns & storage systems', targets: { apps: 20, problems: 15, cases: 2, mocks: 2 },
       dsa: 'Backtracking, greedy, intervals, tries, bit manipulation',
       sd: 'File storage, typeahead search, key-value store, distributed cache',
-      beh: 'Leadership signals: mentoring, raising the bar, disagree-and-commit',
+      beh: 'Ownership signals: mentoring, raising the bar, disagree-and-commit',
       items: [
         { id: 'w6-dsa', g: 'Algorithms', t: '15 problems: backtracking (4), greedy (3), intervals (4), tries (2), bits (2)' },
         { id: 'w6-timed', g: 'Algorithms', t: 'Timed set: 4 problems in 2 hours (two easy, two medium) — onsite pace' },
@@ -752,7 +752,7 @@
         { id: 'w7-dsa', g: 'Algorithms', t: '20 problems from Blind 75 / NeetCode 150 you haven\'t done, random order, timed' },
         { id: 'w7-redo', g: 'Algorithms', t: 'Re-solve your 10 worst problems from weeks 1–6 cold' },
         { id: 'w7-cases', g: 'System design', t: 'Case 9: ride-sharing dispatch. Case 10: payment system (idempotency, ledgers). Present in 40 minutes: requirements → estimates → high-level → deep dive → trade-offs' },
-        { id: 'w7-beh', g: 'Behavioral', t: 'For every active loop: 3 questions per interviewer, a one-line "why this team", and your leveling case — the evidence you operate at senior or staff scope' },
+        { id: 'w7-beh', g: 'Behavioral', t: 'For every active loop: 3 questions per interviewer, a one-line "why this team", and your leveling case — the evidence for the level you are targeting' },
         { id: 'w7-apps', g: 'Applications', t: '15 applications logged; every stale pipeline item gets a follow-up or gets closed' },
         { id: 'w7-mock', g: 'Mocks', t: 'Full mock loop in one day: 2 coding + 1 design + 1 behavioral' }
       ] },
