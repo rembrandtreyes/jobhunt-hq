@@ -9,7 +9,7 @@ A personal job-search command center: a single Go binary serving one HTML page, 
 Four tabs in `web/index.html`:
 - **Today** — day/week counter, weekly stats (applied vs goal, pipeline, interviewing, follow-ups due), a weekday block schedule, and the current week's study focus. All derived client-side from the data below.
 - **Applications** — the tracker. Pipeline statuses: `saved, applied, screen, technical, onsite, offer, rejected, withdrawn`. Every application should carry a `nextDate` + `nextAction`; the Today tab surfaces them when due.
-- **Study plan** — an 8-week checklist (`PLAN` array in the page script). Item ids are stable (`w1-resume`, `w3-case`, …) and are the keys in `study_progress`. Do not rename existing ids; add new ones.
+- **Study plan** — two 8-week tracks in the page script: `GENERAL_PLAN` (any role, ids `g1-resume`, `g4-exercise`, …) and `ENGINEERING_PLAN` (ids `w1-resume`, `w3-case`, …). The user picks a track in settings (`settings.track`, `general` | `engineering`, default general). Item ids are the keys in `study_progress` and must stay stable across both tracks; never rename, only add. Each track object in `TRACKS` also carries its schedule, afternoon blocks, resources, focus labels, and Weighting text.
 - **Companies** — target list with A/B/C priority, why-it-fits, careers link, hiring signal. Seeded from `seed.json` on first run.
 
 ## Layout
@@ -58,13 +58,13 @@ Rebuild after editing `web/index.html` (it is embedded at compile time). `hq.db*
 | PUT | `/api/companies/{id}` | upsert |
 | DELETE | `/api/companies/{id}` | |
 | PUT | `/api/study` | `{"done": {id: true}}` replaces the set; existing `done_at` preserved |
-| PUT | `/api/settings` | `{startDate, weeklyGoal}`; zero values are ignored |
+| PUT | `/api/settings` | `{startDate, weeklyGoal, track}`; zero values are ignored; `track` must be `general` or `engineering` |
 
 The page re-fetches `/api/state` after every write except study toggles (those patch the DOM locally).
 
 ## Seed and job search
 
-- `seed.json` companies are engineering employers whose job boards expose a public JSON feed. `careersUrl` is the human page; `sourceUrl` is the feed: Greenhouse `boards-api.greenhouse.io/v1/boards/{slug}/jobs`, Lever `api.lever.co/v0/postings/{slug}?mode=json`, Ashby `api.ashbyhq.com/posting-api/job-board/{slug}`. `why`, `signal`, `priority`, and `location` are generated from the feed on the seed date; they are snapshots, not live. The top-level `_note` explains this to users; keep it.
+- `seed.json` companies are employers whose job boards expose a public JSON feed; each feed lists every open role in every function. `careersUrl` is the human page; `sourceUrl` is the feed: Greenhouse `boards-api.greenhouse.io/v1/boards/{slug}/jobs`, Lever `api.lever.co/v0/postings/{slug}?mode=json`, Ashby `api.ashbyhq.com/posting-api/job-board/{slug}`. `why` (total roles + top functions), `signal` (total roles, remote, date), `priority` (A ≥300 / B ≥75 / C by total roles), and `location` (top US/remote) are generated from the feed on the seed date; they are snapshots, not live. The top-level `_note` explains this to users; keep it.
 - To add a company, confirm its feed returns JSON with engineering roles, then add a row with both URLs. Never add a company whose feed you did not fetch.
 - **Job search procedure:** `.claude/skills/find-jobs/SKILL.md` is written as a Claude Code skill but is plain markdown any agent can follow: read `/api/state`, fetch each `sourceUrl`, filter by title/location/seniority, dedupe by URL against existing apps, show the user a table, and only after confirmation `PUT` each chosen posting as `status: "saved"` with `source`, `url`, `nextAction`, `nextDate`. Never fabricate a posting. Never change an existing application's status.
 - The page's default `startDate` is empty so Day 1 is the day the user opens it; the seed sets no start date.
@@ -88,5 +88,5 @@ The page re-fetches `/api/state` after every write except study toggles (those p
 ## Suggested next work
 
 1. `hq find` subcommand: the job-search procedure above as a Go command, for users without an AI agent.
-2. Move `PLAN` / `SCHEDULE` / `WEEKEND` out of `web/index.html` into data files so study plans for other roles are data contributions.
+2. Move the `TRACKS` data out of `web/index.html` into data files so a study track for a specific field (sales, design, data, recruiting) is a data contribution.
 3. Optional `GET /api/stats` (conversion by source, days-to-screen) from `application_events`, and a small Stats panel on the Today tab.

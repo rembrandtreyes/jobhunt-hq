@@ -68,6 +68,7 @@ type Company struct {
 type Settings struct {
 	StartDate  string `json:"startDate,omitempty"`
 	WeeklyGoal int    `json:"weeklyGoal,omitempty"`
+	Track      string `json:"track,omitempty"` // study track: general | engineering
 }
 
 type State struct {
@@ -80,6 +81,7 @@ type State struct {
 var (
 	idRe     = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
 	statuses = map[string]bool{"saved": true, "applied": true, "screen": true, "technical": true, "onsite": true, "offer": true, "rejected": true, "withdrawn": true}
+	tracks   = map[string]bool{"general": true, "engineering": true}
 )
 
 const schema = `
@@ -272,6 +274,8 @@ func (s *server) loadState() (*State, error) {
 			st.Settings.StartDate = v
 		case "weeklyGoal":
 			st.Settings.WeeklyGoal, _ = strconv.Atoi(v)
+		case "track":
+			st.Settings.Track = v
 		}
 	}
 	rows.Close()
@@ -493,6 +497,10 @@ func (s *server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 		httpError(w, 400, "weeklyGoal out of range")
 		return
 	}
+	if in.Track != "" && !tracks[in.Track] {
+		httpError(w, 400, "unknown track "+in.Track)
+		return
+	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		httpError(w, 500, err.Error())
@@ -511,6 +519,12 @@ func (s *server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.WeeklyGoal > 0 {
 		if err := up("weeklyGoal", strconv.Itoa(in.WeeklyGoal)); err != nil {
+			httpError(w, 500, err.Error())
+			return
+		}
+	}
+	if in.Track != "" {
+		if err := up("track", in.Track); err != nil {
 			httpError(w, 500, err.Error())
 			return
 		}
@@ -559,6 +573,10 @@ func (s *server) handleImport(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Settings.WeeklyGoal < 0 || in.Settings.WeeklyGoal > 1000 {
 		httpError(w, 400, "settings.weeklyGoal out of range")
+		return
+	}
+	if in.Settings.Track != "" && !tracks[in.Settings.Track] {
+		httpError(w, 400, "settings.track must be general or engineering")
 		return
 	}
 
@@ -621,6 +639,12 @@ func (s *server) handleImport(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Settings.WeeklyGoal > 0 {
 		if err := up("weeklyGoal", strconv.Itoa(in.Settings.WeeklyGoal)); err != nil {
+			httpError(w, 500, err.Error())
+			return
+		}
+	}
+	if in.Settings.Track != "" {
+		if err := up("track", in.Settings.Track); err != nil {
 			httpError(w, 500, err.Error())
 			return
 		}

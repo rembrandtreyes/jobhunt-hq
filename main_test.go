@@ -275,6 +275,38 @@ func TestSettingsRoundTrip(t *testing.T) {
 	}
 }
 
+func TestSettingsTrack(t *testing.T) {
+	_, h := newTestServer(t)
+	if st := getState(t, h); st.Settings.Track != "" {
+		t.Fatalf("fresh db should have no track, got %q", st.Settings.Track)
+	}
+	if rec := do(t, h, "PUT", "/api/settings", Settings{Track: "engineering"}); rec.Code != 204 {
+		t.Fatalf("set track: %d %s", rec.Code, rec.Body)
+	}
+	if st := getState(t, h); st.Settings.Track != "engineering" || st.Settings.WeeklyGoal != 20 { // goal 20 comes from the seed
+		t.Fatalf("settings after track = %+v", st.Settings)
+	}
+	rec := do(t, h, "PUT", "/api/settings", map[string]any{"track": "pilot"})
+	if rec.Code != 400 || !strings.Contains(rec.Body.String(), "unknown track") {
+		t.Fatalf("unknown track: %d %s", rec.Code, rec.Body)
+	}
+	if st := getState(t, h); st.Settings.Track != "engineering" {
+		t.Fatalf("rejected track was stored: %+v", st.Settings)
+	}
+	// Track travels through export/import.
+	exp := do(t, h, "GET", "/api/export", nil)
+	_, h2 := newTestServer(t)
+	if rec := do(t, h2, "POST", "/api/import", json.RawMessage(exp.Body.Bytes())); rec.Code != 200 {
+		t.Fatalf("import: %d %s", rec.Code, rec.Body)
+	}
+	if st := getState(t, h2); st.Settings.Track != "engineering" {
+		t.Fatalf("track lost in round trip: %+v", st.Settings)
+	}
+	if rec := do(t, h2, "POST", "/api/import", State{Settings: Settings{Track: "pilot"}}); rec.Code != 400 {
+		t.Fatalf("import unknown track: %d %s", rec.Code, rec.Body)
+	}
+}
+
 // ---------- import ----------
 
 func TestImportMergesExportShape(t *testing.T) {

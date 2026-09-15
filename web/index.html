@@ -393,7 +393,7 @@
       <button class="tab" role="tab" id="tab-companies" aria-selected="false" data-tab="companies">Companies <span class="count" id="cnt-companies">0</span></button>
     </nav>
     <span class="sync" id="sync" title="Where your data is saved">connecting</span>
-    <button class="iconbtn" id="btn-settings" aria-label="Settings" aria-expanded="false" title="Start date and weekly goal">
+    <button class="iconbtn" id="btn-settings" aria-label="Settings" aria-expanded="false" title="Start date, weekly goal, study track">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
     </button>
     <div class="pop" id="settings-pop" hidden>
@@ -405,6 +405,13 @@
       <div class="field">
         <label for="set-goal">Applications per week</label>
         <input type="number" id="set-goal" min="1" max="100" step="1">
+      </div>
+      <div class="field">
+        <label for="set-track">Study track</label>
+        <select id="set-track">
+          <option value="general">General — any role</option>
+          <option value="engineering">Software engineering</option>
+        </select>
       </div>
       <div class="factions" style="border:0;padding:0;margin:0">
         <span class="spacer"></span>
@@ -510,7 +517,8 @@
     <div class="pagehead">
       <div>
         <h2>Eight-week interview plan</h2>
-        <p class="sub">Built for a full-time search: mornings on data structures and algorithms, afternoons on applications, system design, and behavioral practice.</p>
+        <p class="sub" id="study-sub"></p>
+        <p class="sub" id="study-track"></p>
       </div>
     </div>
 
@@ -519,7 +527,7 @@
     <div class="howto">
       <p><b>How to run it.</b> Each week has a checklist. Check things off as you finish them; progress is saved. The current week is highlighted and its focus shows up on the Today tab.</p>
       <p><b>Problem rules.</b> Set a 30-minute timer per problem. If you're stuck at 20 minutes, read the approach (not the code), then write it yourself. Log every problem's pattern in a notebook — the pattern is what transfers, not the problem.</p>
-      <p><b>Weighting.</b> This plan covers the three rounds most software engineering loops use, at any level: system design starts in week 2 on home turf and runs two cases a week from week 3; behavioral prep centers on ownership, collaboration, and measurable results; algorithms stay daily because most loops still open with a coding screen. Shift the mix toward your target role — more design for infrastructure and backend, more front-end fundamentals for UI roles, fewer design cases for early-career loops.</p>
+      <p id="study-weighting"></p>
     </div>
 
     <div class="weeks" id="weeks"></div>
@@ -662,11 +670,9 @@
   const INTERVIEW = new Set(['screen', 'technical', 'onsite']);
   const CLOSED = new Set(['rejected', 'withdrawn']);
 
-  const PLAN = [
-    { n: 1, theme: 'Foundations & launch', targets: { apps: 10, problems: 12, cases: 0, mocks: 0 },
-      dsa: 'Big-O, arrays, strings, hashing, two pointers, sliding window',
-      sd: 'The system you know best, drawn and explained — the anchor story for every design round',
-      beh: 'Draft the STAR story bank',
+  const ENGINEERING_PLAN = [
+    { n: 1, theme: 'Foundations & launch', targets: [['applications', 10], ['problems', 12], ['design cases', 0], ['mocks', 0]],
+      focus: ['Big-O, arrays, strings, hashing, two pointers, sliding window', 'The system you know best, drawn and explained — the anchor story for every design round', 'Draft the STAR story bank'],
       items: [
         { id: 'w1-resume', g: 'Launch', t: 'Update your resume: tight, impact bullets with numbers, keywords matched to three target postings' },
         { id: 'w1-linkedin', g: 'Launch', t: 'LinkedIn: new headline, rewritten About, Open to Work turned on, a short "I\'m looking" post to your network' },
@@ -678,10 +684,8 @@
         { id: 'w1-apps', g: 'Applications', t: '10 applications logged — warm-up roles you would say yes to today' },
         { id: 'w1-network', g: 'Network', t: 'Message 5 former colleagues or managers: you\'re looking, what you want, would they refer you' }
       ] },
-    { n: 2, theme: 'Core structures', targets: { apps: 15, problems: 15, cases: 1, mocks: 1 },
-      dsa: 'Stacks, queues, linked lists, binary search, prefix sums',
-      sd: 'Web fundamentals refresher, then Case 0 on home turf: the system you know best',
-      beh: '"Tell me about yourself" in 90 seconds; the "why are you looking" answer; what you\'re looking for',
+    { n: 2, theme: 'Core structures', targets: [['applications', 15], ['problems', 15], ['design cases', 1], ['mocks', 1]],
+      focus: ['Stacks, queues, linked lists, binary search, prefix sums', 'Web fundamentals refresher, then Case 0 on home turf: the system you know best', '"Tell me about yourself" in 90 seconds; the "why are you looking" answer; what you\'re looking for'],
       items: [
         { id: 'w2-dsa', g: 'Algorithms', t: '15 problems: stacks (3), linked lists (4), binary search (5), prefix sums (3)' },
         { id: 'w2-redo', g: 'Algorithms', t: 'Re-solve every week-1 problem you missed, cold, without notes' },
@@ -692,10 +696,8 @@
         { id: 'w2-network', g: 'Network', t: '10 outreach messages: recruiters at target companies, alumni, ex-colleagues — ask for 15 minutes, not a job' },
         { id: 'w2-mock', g: 'Mocks', t: 'One peer coding mock (a friend, interviewing.io, or a study group)' }
       ] },
-    { n: 3, theme: 'Trees & the design vocabulary', targets: { apps: 20, problems: 15, cases: 2, mocks: 1 },
-      dsa: 'Binary trees, BSTs, recursion, heaps and priority queues',
-      sd: 'Caching, databases (SQL vs NoSQL, indexes, replication), CAP and consistency',
-      beh: 'Deep-dive on your most complex project: architecture, trade-offs, what you would change',
+    { n: 3, theme: 'Trees & the design vocabulary', targets: [['applications', 20], ['problems', 15], ['design cases', 2], ['mocks', 1]],
+      focus: ['Binary trees, BSTs, recursion, heaps and priority queues', 'Caching, databases (SQL vs NoSQL, indexes, replication), CAP and consistency', 'Deep-dive on your most complex project: architecture, trade-offs, what you would change'],
       items: [
         { id: 'w3-dsa', g: 'Algorithms', t: '15 problems: tree traversals (5), BST (3), recursion (3), heaps (4)' },
         { id: 'w3-timed', g: 'Algorithms', t: 'Timed set: 3 mixed problems in 90 minutes, no notes — the shape of a real phone screen' },
@@ -705,10 +707,8 @@
         { id: 'w3-apps', g: 'Applications', t: '20 applications logged; follow up on everything from week 1 with no response' },
         { id: 'w3-mock', g: 'Mocks', t: 'One coding mock; write down the three things that went worst' }
       ] },
-    { n: 4, theme: 'Graphs & scale', targets: { apps: 20, problems: 15, cases: 2, mocks: 2 },
-      dsa: 'Graphs: BFS, DFS, topological sort, union-find, Dijkstra',
-      sd: 'Load balancing, horizontal scaling, message queues, rate limiting, idempotency',
-      beh: 'Influencing without authority, taking hard feedback, prioritizing under constraint',
+    { n: 4, theme: 'Graphs & scale', targets: [['applications', 20], ['problems', 15], ['design cases', 2], ['mocks', 2]],
+      focus: ['Graphs: BFS, DFS, topological sort, union-find, Dijkstra', 'Load balancing, horizontal scaling, message queues, rate limiting, idempotency', 'Influencing without authority, taking hard feedback, prioritizing under constraint'],
       items: [
         { id: 'w4-dsa', g: 'Algorithms', t: '15 problems: BFS/DFS on grids and graphs (7), topological sort (3), union-find (2), shortest paths (3)' },
         { id: 'w4-impl', g: 'Algorithms', t: 'Implement BFS, DFS, Dijkstra, and union-find from memory in under 10 minutes each' },
@@ -718,10 +718,8 @@
         { id: 'w4-apps', g: 'Applications', t: '20 applications logged, at least 5 through a referral' },
         { id: 'w4-mock', g: 'Mocks', t: 'One coding mock + one system design mock' }
       ] },
-    { n: 5, theme: 'Dynamic programming & product-scale systems', targets: { apps: 20, problems: 15, cases: 2, mocks: 2 },
-      dsa: '1-D and 2-D DP, memoization, knapsack, LIS / LCS, edit distance',
-      sd: 'News feed, chat: fan-out on read vs write, WebSockets, pub/sub, message ordering',
-      beh: 'Failure story polish: what you owned, what changed afterward',
+    { n: 5, theme: 'Dynamic programming & product-scale systems', targets: [['applications', 20], ['problems', 15], ['design cases', 2], ['mocks', 2]],
+      focus: ['1-D and 2-D DP, memoization, knapsack, LIS / LCS, edit distance', 'News feed, chat: fan-out on read vs write, WebSockets, pub/sub, message ordering', 'Failure story polish: what you owned, what changed afterward'],
       items: [
         { id: 'w5-dsa', g: 'Algorithms', t: '15 problems: 1-D DP (5), 2-D DP (4), knapsack-style (3), string DP (3)' },
         { id: 'w5-recipe', g: 'Algorithms', t: 'Write the DP recipe in your notebook — state, transition, base case, order — and apply it to every problem this week' },
@@ -731,10 +729,8 @@
         { id: 'w5-network', g: 'Network', t: 'Second-touch messages to everyone who replied in weeks 1–2; ask for intros' },
         { id: 'w5-mock', g: 'Mocks', t: 'One coding mock (medium/hard) + one system design mock' }
       ] },
-    { n: 6, theme: 'Advanced patterns & storage systems', targets: { apps: 20, problems: 15, cases: 2, mocks: 2 },
-      dsa: 'Backtracking, greedy, intervals, tries, bit manipulation',
-      sd: 'File storage, typeahead search, key-value store, distributed cache',
-      beh: 'Ownership signals: mentoring, raising the bar, disagree-and-commit',
+    { n: 6, theme: 'Advanced patterns & storage systems', targets: [['applications', 20], ['problems', 15], ['design cases', 2], ['mocks', 2]],
+      focus: ['Backtracking, greedy, intervals, tries, bit manipulation', 'File storage, typeahead search, key-value store, distributed cache', 'Ownership signals: mentoring, raising the bar, disagree-and-commit'],
       items: [
         { id: 'w6-dsa', g: 'Algorithms', t: '15 problems: backtracking (4), greedy (3), intervals (4), tries (2), bits (2)' },
         { id: 'w6-timed', g: 'Algorithms', t: 'Timed set: 4 problems in 2 hours (two easy, two medium) — onsite pace' },
@@ -744,10 +740,8 @@
         { id: 'w6-apps', g: 'Applications', t: '20 applications logged; drop the sources that never convert' },
         { id: 'w6-mock', g: 'Mocks', t: 'Two mocks: one coding, one system design; track the score trend' }
       ] },
-    { n: 7, theme: 'Interview-ready', targets: { apps: 15, problems: 20, cases: 2, mocks: 4 },
-      dsa: 'Mixed timed review of every pattern so far, weighted toward your weakest',
-      sd: 'Ride-sharing dispatch, payments (idempotency, ledgers), observability and on-call',
-      beh: 'Company-specific prep: values, recent news, questions to ask each interviewer',
+    { n: 7, theme: 'Interview-ready', targets: [['applications', 15], ['problems', 20], ['design cases', 2], ['mocks', 4]],
+      focus: ['Mixed timed review of every pattern so far, weighted toward your weakest', 'Ride-sharing dispatch, payments (idempotency, ledgers), observability and on-call', 'Company-specific prep: values, recent news, questions to ask each interviewer'],
       items: [
         { id: 'w7-dsa', g: 'Algorithms', t: '20 problems from Blind 75 / NeetCode 150 you haven\'t done, random order, timed' },
         { id: 'w7-redo', g: 'Algorithms', t: 'Re-solve your 10 worst problems from weeks 1–6 cold' },
@@ -756,10 +750,8 @@
         { id: 'w7-apps', g: 'Applications', t: '15 applications logged; every stale pipeline item gets a follow-up or gets closed' },
         { id: 'w7-mock', g: 'Mocks', t: 'Full mock loop in one day: 2 coding + 1 design + 1 behavioral' }
       ] },
-    { n: 8, theme: 'Close & decide', targets: { apps: 0, problems: 7, cases: 0, mocks: 1 },
-      dsa: 'Maintenance: one problem a day on your weakest patterns',
-      sd: 'Only what active loops need',
-      beh: 'Negotiation: comp research, competing offers, the "thanks, I need a few days" script',
+    { n: 8, theme: 'Close & decide', targets: [['applications', 0], ['problems', 7], ['design cases', 0], ['mocks', 1]],
+      focus: ['Maintenance: one problem a day on your weakest patterns', 'Only what active loops need', 'Negotiation: comp research, competing offers, the "thanks, I need a few days" script'],
       items: [
         { id: 'w8-dsa', g: 'Algorithms', t: '7 problems, one per day, on the patterns you missed in the mock loop' },
         { id: 'w8-comp', g: 'Behavioral', t: 'Research comp bands on levels.fyi for each active company and level; write your target and walk-away numbers' },
@@ -770,10 +762,9 @@
         { id: 'w8-retro', g: 'Launch', t: 'Write a one-page retro: what worked, conversion rates by source, what you would do differently' }
       ] }
   ];
-  const ALL_ITEMS = PLAN.flatMap(w => w.items);
-  const GROUP_ORDER = ['Launch', 'Algorithms', 'System design', 'Behavioral', 'Applications', 'Network', 'Mocks'];
+  const ENGINEERING_GROUPS = ['Launch', 'Algorithms', 'System design', 'Behavioral', 'Applications', 'Network', 'Mocks'];
 
-  const RESOURCES = [
+  const ENGINEERING_RESOURCES = [
     { n: 'NeetCode roadmap', u: 'https://neetcode.io/roadmap', d: 'Patterns in order; the 150 list is the study spine' },
     { n: 'LeetCode', u: 'https://leetcode.com/problemset/', d: 'Timed practice; use company tags once interviews are scheduled' },
     { n: 'Tech Interview Handbook', u: 'https://www.techinterviewhandbook.org/', d: 'Free and end to end: resume, algorithm cheat sheets, behavioral' },
@@ -784,7 +775,7 @@
     { n: 'Designing Data-Intensive Applications', u: '', d: 'Kleppmann. Chapters 5–6 (replication, partitioning) are the high-yield ones' }
   ];
 
-  const SCHEDULE = [
+  const ENGINEERING_SCHEDULE = [
     { t: '8:30', d: '30 min', w: 'Plan the day', h: 'Open this page. Clear the follow-ups due, pick today\'s three target roles, choose the problem set.', c: '' },
     { t: '9:00', d: '2 hrs', w: 'Algorithms deep work', h: 'Three problems, 30 minutes each on a timer, then 15 minutes reviewing the optimal solution and logging the pattern.', c: 'deep' },
     { t: '11:00', d: '15 min', w: 'Break', h: 'Walk. Screen off.', c: 'rest' },
@@ -794,7 +785,7 @@
     { t: '2:30', d: '90 min', w: '', h: '', c: 'deep', vary: true },
     { t: '4:00', d: '30 min', w: 'Close the day', h: 'Pattern flashcards, note what was hard, write tomorrow\'s three targets. Then stop — rest is part of the plan.', c: '' }
   ];
-  const AFTERNOON = {
+  const ENGINEERING_AFTERNOON = {
     1: { w: 'System design case', h: 'One case out loud, 40 minutes, then 30 minutes reading what you missed. Draw it — boxes, arrows, numbers.' },
     3: { w: 'System design case', h: 'One case out loud, 40 minutes, then 30 minutes reading what you missed. Draw it — boxes, arrows, numbers.' },
     2: { w: 'Behavioral practice', h: 'STAR stories on a timer, recorded. Listen back for rambling and missing results. Then rehearse the project deep-dive.' },
@@ -805,6 +796,119 @@
     6: [{ t: '—', d: '', w: 'Light day', h: 'One problem, one mock if it\'s scheduled, then rest.', c: 'rest' }],
     0: [{ t: '—', d: '', w: 'Rest', h: 'Set up Monday before bed: the week\'s target companies and problem list. Nothing else.', c: 'rest' }]
   };
+
+  const GENERAL_PLAN = [
+    { n: 1, theme: 'Foundations & launch', targets: [['applications', 10], ['outreach', 5], ['stories', 8], ['practice', 0]],
+      focus: ['Pick the three skills your target roles ask for most and decide how you will show each one', 'Your 90-second intro: who you are, what you do best, what you want next', 'Draft the STAR story bank'],
+      items: [
+        { id: 'g1-resume', g: 'Launch', t: 'Update your resume: tight, impact bullets with numbers, keywords matched to three target postings' },
+        { id: 'g1-linkedin', g: 'Launch', t: 'LinkedIn: new headline, rewritten About, Open to Work turned on, a short "I\'m looking" post to your network' },
+        { id: 'g1-setup', g: 'Launch', t: 'Set this page up: start date, weekly goal, and track in settings, first 10 companies on the Companies tab' },
+        { id: 'g1-roles', g: 'Skills', t: 'Write down the 3 role titles you are targeting and the 5 skills their postings repeat most — this is your keyword list' },
+        { id: 'g1-stories', g: 'Interviews', t: 'Write 8 STAR stories: a hard problem you solved, a project you drove end to end, working across teams, helping someone grow, disagreeing with a decision, a failure and what changed, ambiguity, your biggest measurable impact' },
+        { id: 'g1-apps', g: 'Applications', t: '10 applications logged — warm-up roles you would say yes to today' },
+        { id: 'g1-network', g: 'Network', t: 'Message 5 former colleagues or managers: you\'re looking, what you want, would they refer you' }
+      ] },
+    { n: 2, theme: 'Positioning', targets: [['applications', 15], ['outreach', 10], ['stories', 0], ['practice', 1]],
+      focus: ['A work sample for your function: a one-page case study, a portfolio piece, a deck, a writing sample, or a process you improved', '"Tell me about yourself" in 90 seconds; the "why are you looking" answer; what you\'re looking for', 'Record yourself answering the six most common questions for your role'],
+      items: [
+        { id: 'g2-sample', g: 'Skills', t: 'Build one work sample that proves your top skill: a case study, portfolio piece, deck, or writeup you can send with an application' },
+        { id: 'g2-intro', g: 'Interviews', t: 'Record "tell me about yourself" and the "why are you looking" answer; listen back; cut to 90 seconds, neutral tone, forward-looking' },
+        { id: 'g2-common', g: 'Interviews', t: 'List the 6 questions your role gets asked most (search "<your role> interview questions"); write a two-minute answer for each' },
+        { id: 'g2-apps', g: 'Applications', t: '15 applications logged, each with 2–3 resume bullets tailored to the posting' },
+        { id: 'g2-network', g: 'Network', t: '10 outreach messages: recruiters at target companies, alumni, ex-colleagues — ask for 15 minutes, not a job' },
+        { id: 'g2-mock', g: 'Practice', t: 'One mock interview with a friend or former colleague; write down the three things that went worst' }
+      ] },
+    { n: 3, theme: 'Depth', targets: [['applications', 20], ['outreach', 10], ['stories', 0], ['practice', 1]],
+      focus: ['Your most complex project: what you owned, the numbers, what you would change', 'Company research in 10 minutes: what they sell, who they sell to, recent news, why you', 'Informational interviews: two 15-minute calls with people doing the job you want'],
+      items: [
+        { id: 'g3-deep', g: 'Interviews', t: 'Prepare a 5-minute deep-dive on your best project with numbers; practice "why that choice?" three levels deep' },
+        { id: 'g3-research', g: 'Skills', t: 'Write a 10-minute company research routine and run it on your top 10 companies; note one specific reason for each' },
+        { id: 'g3-info', g: 'Network', t: 'Book 2 informational calls with people in your target role; ask what the loop looks like and what they wish they had known' },
+        { id: 'g3-apps', g: 'Applications', t: '20 applications logged; follow up on everything from week 1 with no response' },
+        { id: 'g3-mock', g: 'Practice', t: 'One mock on your role\'s hardest round (case, presentation, portfolio review, or scenario); note the three things that went worst' }
+      ] },
+    { n: 4, theme: 'Practice loops', targets: [['applications', 20], ['outreach', 5], ['stories', 3], ['practice', 2]],
+      focus: ['The exercise your role\'s loop uses: a case, a presentation, a portfolio walkthrough, a take-home, a role-play', 'Three more stories: a problem you solved under pressure, a change you drove across teams, someone you helped grow', 'Influencing without authority, taking hard feedback, prioritizing under constraint'],
+      items: [
+        { id: 'g4-exercise', g: 'Skills', t: 'Do your role\'s core exercise twice on a timer (case, presentation, portfolio walkthrough, role-play, take-home); score yourself against a rubric you write first' },
+        { id: 'g4-stories', g: 'Interviews', t: 'Add 3 more stories: a problem you solved under pressure, a change you drove across teams, someone you helped grow — every story ends with a measurable result' },
+        { id: 'g4-apps', g: 'Applications', t: '20 applications logged, at least 5 through a referral' },
+        { id: 'g4-referral', g: 'Network', t: 'Ask for 5 referrals directly; send each person the posting and a 3-line blurb they can forward' },
+        { id: 'g4-mock', g: 'Practice', t: 'Two mocks: one behavioral, one on your role\'s exercise' }
+      ] },
+    { n: 5, theme: 'Conversion', targets: [['applications', 20], ['outreach', 10], ['stories', 0], ['practice', 2]],
+      focus: ['Tailor your top 5 stories to each company with active interviews — their values, their language', 'Failure story polish: what you owned, what changed afterward', 'Panel practice: 6 questions in 30 minutes, feedback on scope, ownership, and rambling'],
+      items: [
+        { id: 'g5-tailor', g: 'Interviews', t: 'Tailor your top 5 stories to each company with active interviews — their values, their language' },
+        { id: 'g5-panel', g: 'Practice', t: 'Mock behavioral round with an experienced friend: 6 questions in 30 minutes, feedback on scope, ownership, and rambling' },
+        { id: 'g5-apps', g: 'Applications', t: '20 applications logged; review the tracker — which sources are converting to screens?' },
+        { id: 'g5-network', g: 'Network', t: 'Second-touch messages to everyone who replied in weeks 1–2; ask for intros' },
+        { id: 'g5-mock', g: 'Practice', t: 'One mock on your role\'s exercise; track the score trend' }
+      ] },
+    { n: 6, theme: 'Hard rounds', targets: [['applications', 20], ['outreach', 5], ['stories', 0], ['practice', 2]],
+      focus: ['Take-homes and presentations: scope tight, show your thinking, finish early', 'Questions for them: 3 per interviewer and a one-line "why this team"', 'Comp research begins: bands for your role and level in your market'],
+      items: [
+        { id: 'g6-takehome', g: 'Skills', t: 'Do one full take-home or presentation end to end in the time a real loop gives; keep the template' },
+        { id: 'g6-questions', g: 'Interviews', t: 'Write 3 questions per interviewer type (hiring manager, peer, skip-level) and a one-line "why this team" for each active company' },
+        { id: 'g6-comp', g: 'Interviews', t: 'Research comp for your role and level (levels.fyi, Glassdoor, Payscale); write your target and walk-away numbers' },
+        { id: 'g6-apps', g: 'Applications', t: '20 applications logged; drop the sources that never convert' },
+        { id: 'g6-mock', g: 'Practice', t: 'Two mocks: one behavioral, one exercise; compare to week 4' }
+      ] },
+    { n: 7, theme: 'Interview-ready', targets: [['applications', 15], ['outreach', 5], ['stories', 0], ['practice', 3]],
+      focus: ['Company-specific prep: values, recent news, the product, the people you will meet', 'Your leveling case: the evidence for the level you are targeting', 'Full mock loop in one day'],
+      items: [
+        { id: 'g7-prep', g: 'Interviews', t: 'For every active loop: a company one-pager, 3 questions per interviewer, your leveling case' },
+        { id: 'g7-loop', g: 'Practice', t: 'Full mock loop in one day: behavioral + your role\'s exercise + a presentation or case' },
+        { id: 'g7-apps', g: 'Applications', t: '15 applications logged; every stale pipeline item gets a follow-up or gets closed' },
+        { id: 'g7-redo', g: 'Skills', t: 'Redo your weakest exercise from weeks 4–6 cold' },
+        { id: 'g7-thanks', g: 'Network', t: 'Same-day thank-you notes for every interview, each naming one specific thing you discussed' }
+      ] },
+    { n: 8, theme: 'Close & decide', targets: [['applications', 0], ['outreach', 0], ['stories', 0], ['practice', 1]],
+      focus: ['Negotiation: ask for time, anchor on data, ask about sign-on, equity, start date', 'Only what active loops need', 'The "thanks, I need a few days" script'],
+      items: [
+        { id: 'g8-nego', g: 'Interviews', t: 'Practice the negotiation conversation out loud: ask for time, anchor on data, ask about sign-on, equity, start date' },
+        { id: 'g8-tracker', g: 'Applications', t: 'Re-read the tracker: close everything dead, follow up on everything alive' },
+        { id: 'g8-decide', g: 'Applications', t: 'Decide: accept, negotiate, or set up weeks 9–12 (same plan, heavier on referrals and mocks)' },
+        { id: 'g8-mock', g: 'Practice', t: 'One last mock if a final round is scheduled' },
+        { id: 'g8-retro', g: 'Launch', t: 'Write a one-page retro: what worked, conversion rates by source, what you would do differently' }
+      ] }
+  ];
+  const GENERAL_GROUPS = ['Launch', 'Skills', 'Interviews', 'Applications', 'Network', 'Practice'];
+  const GENERAL_RESOURCES = [
+    { n: 'Interview Warmup (Google)', u: 'https://grow.google/certificates/interview-warmup/', d: 'Free practice questions for any role, with feedback on your answers' },
+    { n: 'Ask a Manager', u: 'https://www.askamanager.org/', d: 'Resumes, cover letters, negotiation, and awkward situations, answered plainly' },
+    { n: 'Glassdoor', u: 'https://www.glassdoor.com/', d: 'Interview questions and salary reports by company' },
+    { n: 'levels.fyi', u: 'https://www.levels.fyi/', d: 'Comp by company and level, tech and beyond' },
+    { n: 'Payscale', u: 'https://www.payscale.com/', d: 'Salary ranges by title and city for roles levels.fyi does not cover' },
+    { n: 'The STAR method', u: '', d: 'Situation, Task, Action, Result — every story ends with a number' }
+  ];
+  const GENERAL_SCHEDULE = ENGINEERING_SCHEDULE.map(s => s.w === 'Algorithms deep work'
+    ? Object.assign({}, s, { w: 'Skill practice & work samples', h: 'Two hours on the exercise your loop uses: cases, portfolio pieces, decks, writing, mock calls. Timer on, then 15 minutes of notes on what to fix.' })
+    : s);
+  const GENERAL_AFTERNOON = {
+    1: { w: 'Company research & tailoring', h: 'Ten minutes per target company: what they sell, recent news, why you. Then tailor two applications with what you found.' },
+    3: { w: 'Company research & tailoring', h: 'Ten minutes per target company: what they sell, recent news, why you. Then tailor two applications with what you found.' },
+    2: { w: 'Interview practice', h: 'STAR stories on a timer, recorded. Listen back for rambling and missing results. Then rehearse the project deep-dive.' },
+    4: { w: 'Interview practice', h: 'STAR stories on a timer, recorded. Listen back for rambling and missing results. Then rehearse the project deep-dive.' },
+    5: { w: 'Mock interview, then weekly retro', h: 'Book a mock (behavioral and your role\'s exercise on alternate weeks). At 4:00, retro: applications sent, response rate by source, what changes next week.' }
+  };
+
+  const TRACKS = {
+    general: {
+      label: 'General — any role', plan: GENERAL_PLAN, groups: GENERAL_GROUPS, resources: GENERAL_RESOURCES,
+      schedule: GENERAL_SCHEDULE, afternoon: GENERAL_AFTERNOON, focusLabels: ['Skills', 'Story', 'Practice'],
+      sub: 'Built for a full-time search: mornings on the skills and work samples your role needs, afternoons on applications, outreach, and interview practice.',
+      weighting: 'This track covers what almost every loop asks for, whatever the role: a clear story, proof of your top skills, tailored applications, and practice on the exercise your field uses — case, presentation, portfolio review, role-play, or take-home. If your field has a specific round, spend the 9:00 block on it. Switch tracks above for algorithms and system design.'
+    },
+    engineering: {
+      label: 'Software engineering', plan: ENGINEERING_PLAN, groups: ENGINEERING_GROUPS, resources: ENGINEERING_RESOURCES,
+      schedule: ENGINEERING_SCHEDULE, afternoon: ENGINEERING_AFTERNOON, focusLabels: ['Algorithms', 'Design', 'Behavioral'],
+      sub: 'Built for a full-time search: mornings on data structures and algorithms, afternoons on applications, system design, and behavioral practice.',
+      weighting: 'This track covers the three rounds most software engineering loops use, at any level: system design starts in week 2 on home turf and runs two cases a week from week 3; behavioral prep centers on ownership, collaboration, and measurable results; algorithms stay daily because most loops still open with a coding screen. Shift the mix toward your target role — more design for infrastructure and backend, more front-end fundamentals for UI roles, fewer design cases for early-career loops.'
+    }
+  };
+  function track() { return TRACKS[state.settings.track] || TRACKS.general; }
 
   const EXAMPLES = (() => {
     const t = todayISO();
@@ -820,7 +924,7 @@
   const state = {
     tab: 'today',
     apps: [], companies: [], done: {},
-    settings: { startDate: '', weeklyGoal: 20 },
+    settings: { startDate: '', weeklyGoal: 20, track: 'general' },
     mode: 'local', loaded: false,
     filter: 'all', query: '',
     openWeeks: null
@@ -845,7 +949,8 @@
       state.apps = Array.isArray(s.apps) ? s.apps : [];
       state.companies = Array.isArray(s.companies) ? s.companies : [];
       state.done = s.done && typeof s.done === 'object' ? s.done : {};
-      if (s.settings) { if (s.settings.startDate) state.settings.startDate = s.settings.startDate; if (s.settings.weeklyGoal) state.settings.weeklyGoal = s.settings.weeklyGoal; }
+      if (s.settings) { if (s.settings.startDate) state.settings.startDate = s.settings.startDate; if (s.settings.weeklyGoal) state.settings.weeklyGoal = s.settings.weeklyGoal; if (TRACKS[s.settings.track]) state.settings.track = s.settings.track; }
+      if (!(s.settings && TRACKS[s.settings.track]) && Object.keys(state.done).some(id => /^w\d/.test(id) && state.done[id])) state.settings.track = 'engineering';
       state.loaded = true; state.mode = 'db'; renderAll();
     },
     async connect() {
@@ -858,7 +963,7 @@
     async saveCompany(c) { await api('PUT', '/api/companies/' + encodeURIComponent(c.id), stripId(c)); await this.refresh(); },
     async deleteCompany(id) { await api('DELETE', '/api/companies/' + encodeURIComponent(id)); await this.refresh(); },
     async saveDone() { await api('PUT', '/api/study', { done: state.done }); },
-    async saveSettings() { await api('PUT', '/api/settings', { startDate: state.settings.startDate, weeklyGoal: +state.settings.weeklyGoal || 0 }); await this.refresh(); }
+    async saveSettings() { await api('PUT', '/api/settings', { startDate: state.settings.startDate, weeklyGoal: +state.settings.weeklyGoal || 0, track: state.settings.track }); await this.refresh(); }
   };
   function stripId(o) { const c = Object.assign({}, o); delete c.id; delete c.example; return c; }
 
@@ -866,8 +971,9 @@
   function weekInfo() {
     const start = state.settings.startDate || todayISO();
     const daysIn = dayDiff(start, todayISO());
-    const idx = clamp(Math.floor(daysIn / 7), 0, PLAN.length - 1);
-    return { start, daysIn, idx, week: PLAN[idx], beyond: daysIn >= PLAN.length * 7 };
+    const plan = track().plan;
+    const idx = clamp(Math.floor(daysIn / 7), 0, plan.length - 1);
+    return { start, daysIn, idx, week: plan[idx], beyond: daysIn >= plan.length * 7 };
   }
   function weekRange(n) {
     const s = addDays(parse(state.settings.startDate || todayISO()), 7 * (n - 1));
@@ -879,8 +985,9 @@
   }
   function isDue(a) { return !!a.nextDate && !CLOSED.has(a.status) && dayDiff(todayISO(), a.nextDate) <= 0; }
   function studyProgress() {
-    const done = ALL_ITEMS.filter(i => state.done[i.id]).length;
-    return { done, total: ALL_ITEMS.length, pct: Math.round(100 * done / ALL_ITEMS.length) };
+    const all = track().plan.flatMap(w => w.items);
+    const done = all.filter(i => state.done[i.id]).length;
+    return { done, total: all.length, pct: Math.round(100 * done / all.length) };
   }
   function visibleApps() {
     const q = state.query.trim().toLowerCase();
@@ -911,7 +1018,7 @@
     const wi = weekInfo();
     const dc = $('#daycount');
     if (wi.daysIn < 0) dc.innerHTML = 'Starts <b>' + esc(fmt(wi.start)) + '</b>';
-    else dc.innerHTML = 'Day <b>' + (wi.daysIn + 1) + '</b> · Week <b>' + (wi.idx + 1) + '</b> of ' + PLAN.length;
+    else dc.innerHTML = 'Day <b>' + (wi.daysIn + 1) + '</b> · Week <b>' + (wi.idx + 1) + '</b> of ' + track().plan.length;
     $('#cnt-apps').textContent = state.apps.length;
     $('#cnt-companies').textContent = state.companies.length;
     $('#cnt-study').textContent = studyProgress().pct + '%';
@@ -956,7 +1063,7 @@
     let items;
     if (WEEKEND[dow]) { items = WEEKEND[dow]; $('#sched-title').textContent = dow === 6 ? 'Saturday' : 'Sunday'; $('#sched-total').textContent = 'weekend'; }
     else {
-      items = SCHEDULE.map(s => s.vary ? Object.assign({}, s, AFTERNOON[dow]) : s);
+      const tr = track(); items = tr.schedule.map(s => s.vary ? Object.assign({}, s, tr.afternoon[dow]) : s);
       $('#sched-title').textContent = 'The day, block by block'; $('#sched-total').textContent = '8:30 – 4:30 · 7 focused hours';
     }
     $('#sched').innerHTML = items.map(s =>
@@ -980,14 +1087,11 @@
     // focus
     const w = wi.week;
     $('#focus-title').textContent = 'Week ' + w.n + ' focus: ' + w.theme;
-    const tg = w.targets;
+    const labels = track().focusLabels;
     $('#focus').innerHTML =
-      '<dl style="padding-top:10px"><dt>Algorithms</dt><dd>' + esc(w.dsa) + '</dd><dt>Design</dt><dd>' + esc(w.sd) + '</dd><dt>Behavioral</dt><dd>' + esc(w.beh) + '</dd></dl>' +
+      '<dl style="padding-top:10px">' + labels.map((l, i) => '<dt>' + esc(l) + '</dt><dd>' + esc(w.focus[i]) + '</dd>').join('') + '</dl>' +
       '<div class="targets">' +
-        '<span><b>' + (tg.apps || '—') + '</b>applications</span>' +
-        '<span><b>' + tg.problems + '</b>problems</span>' +
-        '<span><b>' + (tg.cases || '—') + '</b>design cases</span>' +
-        '<span><b>' + (tg.mocks || '—') + '</b>mocks</span>' +
+        w.targets.map(([l, n]) => '<span><b>' + (n || '—') + '</b>' + esc(l) + '</span>').join('') +
         '<span><b>' + weekDone(w) + '/' + w.items.length + '</b>checklist</span>' +
       '</div>';
   }
@@ -1040,19 +1144,25 @@
   }
 
   function renderStudy() {
+    const tr = track();
     const wi = weekInfo();
     if (!state.openWeeks) state.openWeeks = new Set([wi.week.n]);
     const p = studyProgress();
+    $('#study-sub').textContent = tr.sub;
+    $('#study-track').innerHTML = '<label for="study-track-sel" style="margin-right:8px">Track</label>' +
+      '<select id="study-track-sel" aria-label="Study track" style="width:auto;min-width:240px;display:inline-block;vertical-align:middle">' + Object.keys(TRACKS).map(k => '<option value="' + k + '"' + (TRACKS[k] === tr ? ' selected' : '') + '>' + esc(TRACKS[k].label) + '</option>').join('') + '</select>' +
+      '<span class="muted" style="margin-left:10px">Progress is saved per track; switching never loses a checkmark.</span>';
+    $('#study-weighting').innerHTML = '<b>Weighting.</b> ' + esc(tr.weighting);
     $('#overall').innerHTML = '<div class="row"><div><span class="label">Overall</span><div class="big num">' + p.done + ' <span class="muted" style="font-size:16px;font-weight:500">of ' + p.total + ' items</span></div></div>' +
-      '<span class="mono muted" style="font-size:13px">Started ' + esc(fmt(wi.start)) + ' · ' + (wi.daysIn < 0 ? 'starts in ' + (-wi.daysIn) + ' days' : 'week ' + (wi.idx + 1) + ' of ' + PLAN.length) + '</span></div>' +
+      '<span class="mono muted" style="font-size:13px">Started ' + esc(fmt(wi.start)) + ' · ' + (wi.daysIn < 0 ? 'starts in ' + (-wi.daysIn) + ' days' : 'week ' + (wi.idx + 1) + ' of ' + tr.plan.length) + '</span></div>' +
       '<div class="meter"><i style="width:' + p.pct + '%"></i></div>';
 
-    $('#weeks').innerHTML = PLAN.map(w => {
+    $('#weeks').innerHTML = tr.plan.map(w => {
       const done = weekDone(w), pct = Math.round(100 * done / w.items.length);
       const isNow = w.n === wi.week.n && wi.daysIn >= 0 && !wi.beyond;
       const past = w.n < wi.week.n || wi.beyond;
       const open = state.openWeeks.has(w.n);
-      const groups = GROUP_ORDER.filter(g => w.items.some(i => i.g === g));
+      const groups = tr.groups.filter(g => w.items.some(i => i.g === g));
       return '<div class="week' + (isNow ? ' now' : '') + (past ? ' past' : '') + (open ? ' open' : '') + '" data-week="' + w.n + '">' +
         '<button class="week-h" type="button" data-toggle-week="' + w.n + '" aria-expanded="' + open + '">' +
           '<div class="k"><span class="label">Week ' + w.n + ' · ' + esc(weekRange(w.n)) + '</span>' + (isNow ? '<span class="now-tag">This week</span>' : '') + '</div>' +
@@ -1061,20 +1171,20 @@
           '<div class="meter"><i data-week-meter="' + w.n + '" style="width:' + pct + '%"></i></div>' +
         '</button>' +
         '<div class="week-b"' + (open ? '' : ' hidden') + '>' +
-          '<dl class="summary"><dt>Algorithms</dt><dd>' + esc(w.dsa) + '</dd><dt>Design</dt><dd>' + esc(w.sd) + '</dd><dt>Behavioral</dt><dd>' + esc(w.beh) + '</dd></dl>' +
+          '<dl class="summary">' + tr.focusLabels.map((l, i) => '<dt>' + esc(l) + '</dt><dd>' + esc(w.focus[i]) + '</dd>').join('') + '</dl>' +
           groups.map(g => '<div class="group"><h4>' + esc(g) + '</h4><ul class="items">' +
             w.items.filter(i => i.g === g).map(i => '<li><label for="chk-' + i.id + '"><input type="checkbox" id="chk-' + i.id + '" data-item="' + i.id + '"' + (state.done[i.id] ? ' checked' : '') + '><span>' + esc(i.t) + '</span></label></li>').join('') +
             '</ul></div>').join('') +
         '</div></div>';
     }).join('');
 
-    $('#resources').innerHTML = RESOURCES.map(r =>
+    $('#resources').innerHTML = tr.resources.map(r =>
       '<li>' + (r.u ? '<a href="' + esc(r.u) + '" target="_blank" rel="noopener">' + esc(r.n) + '</a>' : '<b>' + esc(r.n) + '</b>') + '<span>' + esc(r.d) + '</span></li>').join('');
   }
   function patchStudyProgress() {
     const p = studyProgress();
     $('#cnt-study').textContent = p.pct + '%';
-    PLAN.forEach(w => {
+    track().plan.forEach(w => {
       const done = weekDone(w);
       const pctEl = $('[data-week-pct="' + w.n + '"]'); if (pctEl) pctEl.textContent = done + '/' + w.items.length;
       const m = $('[data-week-meter="' + w.n + '"]'); if (m) m.style.width = Math.round(100 * done / w.items.length) + '%';
@@ -1209,15 +1319,22 @@
   function openSettings() {
     $('#set-start').value = state.settings.startDate || todayISO();
     $('#set-goal').value = state.settings.weeklyGoal || 20;
+    $('#set-track').value = TRACKS[state.settings.track] ? state.settings.track : 'general';
     pop.hidden = false; setBtn.setAttribute('aria-expanded', 'true'); $('#set-start').focus();
   }
   function closeSettings() { pop.hidden = true; setBtn.setAttribute('aria-expanded', 'false'); }
   setBtn.addEventListener('click', () => pop.hidden ? openSettings() : closeSettings());
   $('#set-cancel').addEventListener('click', closeSettings);
+  document.addEventListener('change', async ev => {
+    if (!ev.target || ev.target.id !== 'study-track-sel' || !TRACKS[ev.target.value]) return;
+    state.settings.track = ev.target.value; state.openWeeks = null;
+    if (await saveGuard(() => store.saveSettings(), 'Track saved')) renderAll();
+  });
   $('#set-save').addEventListener('click', async () => {
     const sd = $('#set-start').value, g = parseInt($('#set-goal').value, 10);
     if (parse(sd)) state.settings.startDate = sd;
     if (g > 0) state.settings.weeklyGoal = g;
+    const tk = $('#set-track').value; if (TRACKS[tk]) state.settings.track = tk;
     state.openWeeks = null;
     if (await saveGuard(() => store.saveSettings(), 'Settings saved')) { closeSettings(); renderAll(); }
   });
