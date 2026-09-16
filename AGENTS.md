@@ -25,6 +25,9 @@ main_test.go, tracks_test.go, customize_test.go, openings_test.go
 web/index.html                 the entire UI (inline CSS + JS, no build step), embedded via go:embed; has a __TRACKS__ placeholder
 tracks/*.json                  the study tracks, one file each, compiled into the binary (contributions go here)
 seed.json                      first-run data — never overwrites existing rows
+cmd/seedgen/main.go            regenerates seed.json from the live boards: refresh, -add host:slug=Name, -check, -report (stdlib only)
+.github/workflows/seed-refresh.yml
+                               weekly (Mondays) + manual: runs seedgen and commits seed.json when the counts changed
 .claude/skills/find-jobs/      job-search procedure (readable by any agent, see below)
 .github/workflows/ci.yml       go vet, gofmt -l, go build, go test on push and PR
 README.md                      user-facing docs incl. useful SQL queries
@@ -73,9 +76,16 @@ The page re-fetches `/api/state` after every write except study toggles (those p
 ## Seed and job search
 
 - `seed.json` companies are employers whose job boards expose a public JSON feed; each feed lists every open role in every function. `careersUrl` is the human page; `sourceUrl` is the feed: Greenhouse `boards-api.greenhouse.io/v1/boards/{slug}/jobs`, Lever `api.lever.co/v0/postings/{slug}?mode=json`, Ashby `api.ashbyhq.com/posting-api/job-board/{slug}`. `why` (total roles + top functions), `signal` (total roles, remote, date), `priority` (A ≥300 / B ≥75 / C by total roles), and `location` (top US/remote) are generated from the feed on the seed date; they are snapshots, not live. The top-level `_note` explains this to users; keep it.
-- To add a company, confirm its feed returns JSON with engineering roles, then add a row with both URLs. Never add a company whose feed you did not fetch.
+- To add a company: `go run ./cmd/seedgen -add greenhouse:<slug>=<Display Name>` (or `lever:` / `ashby:`). It fetches the feed, refuses if the feed is dead or the id/feed is already present, and writes the row with generated `why`/`signal`/`priority`/`location`. Never hand-add a company whose feed you did not fetch.
 - **Job search procedure:** `.claude/skills/find-jobs/SKILL.md` is written as a Claude Code skill but is plain markdown any agent can follow: read `/api/state`, fetch each `sourceUrl`, filter by title/location/seniority, dedupe by URL against existing apps, show the user a table, and only after confirmation `PUT` each chosen posting as `status: "saved"` with `source`, `url`, `nextAction`, `nextDate`. Never fabricate a posting. Never change an existing application's status.
 - The page's default `startDate` is empty so Day 1 is the day the user opens it; the seed sets no start date.
+
+## Seed refresh
+
+- `go run ./cmd/seedgen` (stdlib only, `cmd/seedgen/main.go`) fetches every company's `sourceUrl`, regenerates `priority` (A ≥300 / B ≥75 / C), `location` (most-listed US or remote location), `why` (total plus the four biggest functions, classified from the board's department names with the title as fallback), `signal` (total, remote, date, host), and the date in `_note`, then sorts by priority and total. Ids, names, `careersUrl`, `sourceUrl`, and every other top-level key are left alone.
+- A feed that fails leaves that company's row byte-identical; if more than 20% of feeds fail nothing is written. `-check` exits 1 when any feed is dead (feed health), `-report` prints today's per-company counts without writing.
+- `.github/workflows/seed-refresh.yml` runs it every Monday and on manual dispatch and commits `seed.json` to `main` when it changed. Revert that commit if a refresh looks wrong.
+- Seeding only runs on an empty companies table, so people who already have a database do not receive new seed companies automatically; they can add them from the Companies tab or import a newer `seed.json` (import upserts). A "new in the seed" path is a candidate for later.
 
 ## Openings search
 

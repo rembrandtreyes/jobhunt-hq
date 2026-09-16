@@ -13,7 +13,7 @@ Four tabs on one page:
 - **Today** — day and week counter for your search, weekly stats (applied vs. goal, pipeline, interviewing, follow-ups due), the day block by block, and this week's study focus. Both the schedule and the focus have an **Edit** button: rewrite them in plain text, and Reset brings the track's version back.
 - **Applications** — the tracker. Each application moves through `saved → applied → screen → technical → onsite → offer` (or `rejected` / `withdrawn`). Every status change is logged, so you can see which sources actually convert.
 - **Study plan** — an 8-week checklist in two tracks: **General** (any role: resume, story bank, applications, outreach, interview practice, negotiation) and **Software engineering** (adds algorithms, system design, and coding mocks). Pick yours in settings. Progress is saved per item. Each track is one JSON file in `tracks/`, so a track for your field is a small contribution (see below).
-- **Companies** — 95 employers to start from, each with a live job board that lists every open role, in every function, and a search box that queries all of them at once and saves what you like into the tracker. See below.
+- **Companies** — 179 employers to start from, each with a live job board that lists every open role, in every function, and a search box that queries all of them at once and saves what you like into the tracker. See below.
 
 Everything is stored locally. Export a JSON backup any time and import it on another machine.
 
@@ -107,13 +107,15 @@ Both are stored in your database as settings and travel with export/import. Savi
 
 ## What's seeded on first run
 
-The first run loads `seed.json`: **95 companies whose job boards (Greenhouse, Lever, or Ashby) expose a public feed**. On 2026-09-15 those boards listed **19,653 open roles** across engineering, sales, product, design, data, marketing, customer success, recruiting, finance, and operations, and about 60% of them were outside engineering. It is sample data generated from those feeds, not anyone's application list, and the counts go stale. For each one:
+The first run loads `seed.json`: **179 companies whose job boards (Greenhouse, Lever, or Ashby) expose a public feed**. On 2026-09-16 those boards listed **28,373 open roles** across engineering, sales, product, design, data, marketing, customer success, recruiting, finance, and operations, and about 70% of them were outside engineering. It is sample data generated from those feeds, not anyone's application list, and the counts go stale. For each one:
 
-- **Priority** A / B / C is set by how many roles were open on 2026-09-15 (A = 300 or more, B = 75 or more, C = fewer). Re-rank them for yourself; it's your list.
+- **Priority** A / B / C is set by how many roles were open on the refresh date (A = 300 or more, B = 75 or more, C = fewer). Re-rank them for yourself; it's your list.
 - **Why** and **Signal** summarize that day's board: total open roles, the biggest functions, how many remote, the most-listed US or remote location.
 - **Careers link** opens the board. The hidden `sourceUrl` on each row is the board's JSON feed, which is what the job search below reads.
 
 Seeding never overwrites rows that already exist. To start from your own list, edit `seed.json` before the first run, or delete `hq.db` and run again. The Companies tab lets you add, edit, and delete freely.
+
+**Keeping the seed current.** The counts are regenerated from the live boards by `go run ./cmd/seedgen` (standard library only): it refetches every company's feed and rewrites priority, location, why, and signal, never dropping a company (a feed that fails keeps its old row, and nothing is written if more than 20% fail). A GitHub Actions workflow runs it every Monday and commits `seed.json` when the numbers changed. To add a company whose board is on Greenhouse, Lever, or Ashby: `go run ./cmd/seedgen -add greenhouse:acme="Acme Corp"` (use `lever:` or `ashby:` for those hosts); it fetches the feed first and refuses if the board is dead or already listed. `-report` prints today's counts without writing, `-check` exits 1 if any feed is dead. Seeding only runs on an empty database, so if you already have one, add new companies from the Companies tab or import a newer `seed.json`.
 
 ## Find jobs
 
@@ -232,6 +234,7 @@ customize.go                   validation for the per-user schedule and focus se
 web/index.html                 the whole UI — inline CSS + vanilla JS, no build step, embedded with go:embed
 tracks/*.json                  the study tracks — one file each, compiled into the binary
 seed.json                      first-run data (never overwrites existing rows)
+cmd/seedgen/main.go            regenerates seed.json from the live boards (refresh, -add, -check, -report)
 .claude/skills/find-jobs/      the Claude Code skill that searches the job boards
 ```
 
@@ -253,7 +256,7 @@ CI (`.github/workflows/ci.yml`) runs `go vet`, `gofmt -l`, `go build`, and `go t
 
 ## Contributing
 
-Issues and pull requests are welcome. Good first contributions: more companies with public board feeds in `seed.json`, a study track for a specific field (sales, design, data, recruiting — one file in `tracks/`, see "Adding a study track" above), and fixes to the page. Keep the spirit of the tool: single binary, single page, local first, no dependencies beyond the standard library and the SQLite driver.
+Issues and pull requests are welcome. Good first contributions: more companies with public board feeds in `seed.json` (add them with `go run ./cmd/seedgen -add …` so the row is generated from the live feed), a study track for a specific field (sales, design, data, recruiting — one file in `tracks/`, see "Adding a study track" above), and fixes to the page. Keep the spirit of the tool: single binary, single page, local first, no dependencies beyond the standard library and the SQLite driver.
 
 ## License
 

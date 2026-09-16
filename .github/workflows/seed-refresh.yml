@@ -1,0 +1,50 @@
+name: seed-refresh
+
+# Refreshes the counts in seed.json from the live job boards every Monday and
+# on demand, then commits the result. The generator never drops a company: a
+# feed that fails keeps its old row, and nothing is written when more than 20%
+# of feeds fail. If a refresh looks wrong, revert the commit. A refusal exits
+# non-zero, so a run that wrote nothing shows up red, not as "no change".
+# GitHub pauses scheduled workflows on public repos after 60 days without
+# repository activity; re-enable it from the Actions tab if that happens.
+
+on:
+  schedule:
+    - cron: "17 13 * * 1" # Mondays, 13:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# One refresh at a time; a second dispatch waits rather than racing the push.
+concurrency:
+  group: seed-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: refresh seed.json from the boards
+        run: go run ./cmd/seedgen -timeout 60s
+
+      - name: make sure the app still seeds from it
+        run: go test ./...
+
+      - name: commit if it changed
+        run: |
+          if git diff --quiet -- seed.json; then
+            echo "seed.json unchanged"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add seed.json
+          git commit -m "Refresh seed counts ($(date -u +%Y-%m-%d))"
+          git push
