@@ -45,6 +45,7 @@ type Application struct {
 	Source     string `json:"source"`
 	Location   string `json:"location"`
 	Salary     string `json:"salary"`
+	PostedAt   string `json:"postedAt"`
 	AppliedAt  string `json:"appliedAt"`
 	NextDate   string `json:"nextDate"`
 	NextAction string `json:"nextAction"`
@@ -99,6 +100,7 @@ CREATE TABLE IF NOT EXISTS applications (
   source      TEXT NOT NULL DEFAULT '',
   location    TEXT NOT NULL DEFAULT '',
   salary      TEXT NOT NULL DEFAULT '',
+  posted_at   TEXT NOT NULL DEFAULT '',
   applied_at  TEXT NOT NULL DEFAULT '',
   next_date   TEXT NOT NULL DEFAULT '',
   next_action TEXT NOT NULL DEFAULT '',
@@ -186,6 +188,10 @@ func newServerFS(dbPath string, fsys fs.FS) (*server, error) {
 		db.Close()
 		return nil, fmt.Errorf("schema: %w", err)
 	}
+	if err := ensureColumn(db, "applications", "posted_at", "TEXT NOT NULL DEFAULT ''"); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("migrate: %w", err)
+	}
 	s := &server{db: db, tracks: tracks, page: renderPage(indexHTML, tracks), feeds: newFeedCache(&http.Client{Timeout: feedTimeout + 5*time.Second})}
 	if err := s.seedIfEmpty(); err != nil {
 		db.Close()
@@ -246,13 +252,13 @@ func now() string { return time.Now().UTC().Format(time.RFC3339) }
 func (s *server) loadState() (*State, error) {
 	st := &State{Apps: []Application{}, Companies: []Company{}, Done: map[string]bool{}}
 
-	rows, err := s.db.Query(`SELECT id, company, role, url, status, source, location, salary, applied_at, next_date, next_action, contact, notes, created_at, updated_at FROM applications ORDER BY updated_at DESC`)
+	rows, err := s.db.Query(`SELECT id, company, role, url, status, source, location, salary, posted_at, applied_at, next_date, next_action, contact, notes, created_at, updated_at FROM applications ORDER BY updated_at DESC`)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
 		var a Application
-		if err := rows.Scan(&a.ID, &a.Company, &a.Role, &a.URL, &a.Status, &a.Source, &a.Location, &a.Salary, &a.AppliedAt, &a.NextDate, &a.NextAction, &a.Contact, &a.Notes, &a.CreatedAt, &a.UpdatedAt); err != nil {
+		if err := rows.Scan(&a.ID, &a.Company, &a.Role, &a.URL, &a.Status, &a.Source, &a.Location, &a.Salary, &a.PostedAt, &a.AppliedAt, &a.NextDate, &a.NextAction, &a.Contact, &a.Notes, &a.CreatedAt, &a.UpdatedAt); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -382,12 +388,12 @@ func upsertApplication(tx *sql.Tx, a Application, ts string) error {
 	if err != nil && !isNew {
 		return err
 	}
-	if _, err := tx.Exec(`INSERT INTO applications (id, company, role, url, status, source, location, salary, applied_at, next_date, next_action, contact, notes, created_at, updated_at)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+	if _, err := tx.Exec(`INSERT INTO applications (id, company, role, url, status, source, location, salary, posted_at, applied_at, next_date, next_action, contact, notes, created_at, updated_at)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(id) DO UPDATE SET company=excluded.company, role=excluded.role, url=excluded.url, status=excluded.status, source=excluded.source,
-		  location=excluded.location, salary=excluded.salary, applied_at=excluded.applied_at, next_date=excluded.next_date, next_action=excluded.next_action,
+		  location=excluded.location, salary=excluded.salary, posted_at=excluded.posted_at, applied_at=excluded.applied_at, next_date=excluded.next_date, next_action=excluded.next_action,
 		  contact=excluded.contact, notes=excluded.notes, updated_at=excluded.updated_at`,
-		a.ID, a.Company, a.Role, a.URL, a.Status, a.Source, a.Location, a.Salary, a.AppliedAt, a.NextDate, a.NextAction, a.Contact, a.Notes, a.CreatedAt, a.UpdatedAt); err != nil {
+		a.ID, a.Company, a.Role, a.URL, a.Status, a.Source, a.Location, a.Salary, a.PostedAt, a.AppliedAt, a.NextDate, a.NextAction, a.Contact, a.Notes, a.CreatedAt, a.UpdatedAt); err != nil {
 		return err
 	}
 	if isNew || prevStatus != a.Status {
@@ -707,6 +713,30 @@ func (s *server) handleImport(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]int{"apps": len(in.Apps), "companies": len(in.Companies), "done": added})
 }
 
+// ensureColumn adds a column that a database created by an older schema lacks.
+// SQLite has no ADD COLUMN IF NOT EXISTS, so it checks table_info first.
+func ensureColumn(db *sql.DB, table, column, decl string) error {
+	rows, err := db.Query(`SELECT name FROM pragma_table_info(?)`, table)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return err
+		}
+		if name == column {
+			return nil
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	_, err = db.Exec(`ALTER TABLE ` + table + ` ADD COLUMN ` + column + ` ` + decl)
+	return err
+}
+
 // ---------- seed ----------
 
 // seedIfEmpty loads seed.json (the researched company list, plus anything
@@ -754,8 +784,8 @@ func (s *server) seedIfEmpty() error {
 		if a.UpdatedAt == "" {
 			a.UpdatedAt = ts
 		}
-		if _, err := tx.Exec(`INSERT OR IGNORE INTO applications (id, company, role, url, status, source, location, salary, applied_at, next_date, next_action, contact, notes, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-			a.ID, a.Company, a.Role, a.URL, a.Status, a.Source, a.Location, a.Salary, a.AppliedAt, a.NextDate, a.NextAction, a.Contact, a.Notes, a.CreatedAt, a.UpdatedAt); err != nil {
+		if _, err := tx.Exec(`INSERT OR IGNORE INTO applications (id, company, role, url, status, source, location, salary, posted_at, applied_at, next_date, next_action, contact, notes, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			a.ID, a.Company, a.Role, a.URL, a.Status, a.Source, a.Location, a.Salary, a.PostedAt, a.AppliedAt, a.NextDate, a.NextAction, a.Contact, a.Notes, a.CreatedAt, a.UpdatedAt); err != nil {
 			return err
 		}
 	}

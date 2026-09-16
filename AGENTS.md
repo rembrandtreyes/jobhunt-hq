@@ -8,7 +8,7 @@ A personal job-search command center: a single Go binary serving one HTML page, 
 
 Four tabs in `web/index.html`:
 - **Today** — day/week counter, weekly stats (applied vs goal, pipeline, interviewing, follow-ups due), the day block by block, and the current week's study focus. All derived client-side from the data below. The schedule and the focus each have an Edit button; what the user saves lives in `settings.schedule` / `settings.focus` and overrides the track (see "Per-user customization"). Until the first application exists, a "Getting started" card sits under the stats with three live-checked steps (start date stored, track stored, first application); "Skip for now" hides it per browser via localStorage.
-- **Applications** — the tracker. Pipeline statuses: `saved, applied, screen, technical, onsite, offer, rejected, withdrawn`. Every application should carry a `nextDate` + `nextAction`; the Today tab surfaces them when due.
+- **Applications** — the tracker. Pipeline statuses: `saved, applied, screen, technical, onsite, offer, rejected, withdrawn`. Every application should carry a `nextDate` + `nextAction`; the Today tab surfaces them when due. `postedAt` (`YYYY-MM-DD`) is the job's posting date, set from the feed when a row is saved from the board search or by find-jobs, editable in the drawer, shown in the Posted column with a relative label (a week or newer is styled fresh).
 - **Study plan** — 8-week tracks loaded from `tracks/*.json`, one file per track: `general` (any role, ids `g1-…`) and `engineering` (ids `w1-resume`, `w3-case`, …). The user picks a track in settings (`settings.track`, a track id, default general). Item ids are the keys in `study_progress` and must stay stable and unique across all tracks; never rename, only add. Each track file also carries its schedule, afternoon blocks, weekend, resources, groups, focus labels, rules, and weighting text (see "Study tracks").
 - **Companies** — target list with A/B/C priority, why-it-fits, careers link, hiring signal. Seeded from `seed.json` on first run.
 
@@ -50,7 +50,8 @@ Rebuild after editing `web/index.html` (it is embedded at compile time). `hq.db*
 - `db.SetMaxOpenConns(1)`; WAL mode; `busy_timeout` set via `_pragma` in the DSN.
 - Real columns, not JSON blobs, so `sqlite3 hq.db` is queryable by hand. Column names are snake_case; JSON field names are camelCase and must match what the page sends (see the `Application` / `Company` structs).
 - `application_events` is an append-only status history, written inside the same transaction as the upsert whenever a row is new or its status changes (`upsertApplication`, shared by PUT and import). Conversion analytics depend on it — don't bypass it.
-- Timestamps are server-set RFC3339 UTC; `created_at` is preserved on update. Dates the user enters (`applied_at`, `next_date`) are plain `YYYY-MM-DD` strings and compared as strings.
+- Timestamps are server-set RFC3339 UTC; `created_at` is preserved on update. Dates the user enters (`posted_at`, `applied_at`, `next_date`) are plain `YYYY-MM-DD` strings and compared as strings.
+- Schema changes are additive. `ensureColumn` (called after the `CREATE TABLE IF NOT EXISTS` block) adds a column that an older database lacks, so a new binary opens an old `hq.db` without a manual migration; `posted_at` was added this way. Never rename or drop columns.
 - Ids match `^[A-Za-z0-9_-]{1,64}$`; the page generates them client-side. Status is validated against the fixed set.
 - Listens on `127.0.0.1` by default and has no authentication. Do not add features that assume it is reachable from elsewhere.
 - No dependencies beyond the standard library and what is already in `go.mod` without asking the owner.

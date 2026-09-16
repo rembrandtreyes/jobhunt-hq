@@ -34,11 +34,13 @@ If this fails, stop and tell the user to start the server. From the JSON keep:
 
 `sourceUrl` is one of three shapes. Fetch with `curl -s -A "jobhunt-hq/1.0" <sourceUrl>` and parse:
 
-| Feed host | Shape | Title | Location | Posting URL |
-|---|---|---|---|---|
-| `boards-api.greenhouse.io` | `{ "jobs": [ … ] }` | `title` | `location.name` | `absolute_url` |
-| `api.lever.co` | `[ … ]` (array) | `text` | `categories.location` | `hostedUrl` |
-| `api.ashbyhq.com` | `{ "jobs": [ … ] }` | `title` | `location` | `jobUrl` |
+| Feed host | Shape | Title | Location | Posting URL | Posted |
+|---|---|---|---|---|---|
+| `boards-api.greenhouse.io` | `{ "jobs": [ … ] }` | `title` | `location.name` | `absolute_url` | `first_published` (else `updated_at`) |
+| `api.lever.co` | `[ … ]` (array) | `text` | `categories.location` | `hostedUrl` | `createdAt` (milliseconds since epoch) |
+| `api.ashbyhq.com` | `{ "jobs": [ … ] }` | `title` | `location` | `jobUrl` | `publishedAt` |
+
+Reduce the posted value to a `YYYY-MM-DD` date; it is what the tracker shows in its Posted column, so the user can tell a fresh posting from a stale one.
 
 Fetch feeds in parallel where you can (they are independent). A feed that fails or returns non-JSON is skipped and reported at the end, never guessed.
 
@@ -50,7 +52,7 @@ Location rules: boards list remote roles per country ("UK | Remote", "Spain (Rem
 
 ## Step 4 — Show, then confirm
 
-Present a compact table: company, title, location, URL. Group by company, cap at the limit, say how many more matched. Ask which to save: "all", a list of numbers, or "none". Do not save anything before the user answers.
+Present a compact table: company, title, location, posted date, URL. Newest first within a company; group by company, cap at the limit, say how many more matched. Ask which to save: "all", a list of numbers, or "none". Do not save anything before the user answers.
 
 ## Step 5 — Save the chosen postings
 
@@ -64,6 +66,7 @@ For each chosen posting, `PUT /api/applications/{id}` with a client-generated id
   "status": "saved",
   "source": "find-jobs",
   "location": "Remote, US",
+  "postedAt": "<posting date from the feed, YYYY-MM-DD; omit if the feed has none>",
   "nextAction": "Read the posting and decide whether to apply",
   "nextDate": "<today + 2 days, YYYY-MM-DD>",
   "notes": "Found by find-jobs on <today>"

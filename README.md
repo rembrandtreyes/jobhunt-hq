@@ -11,7 +11,7 @@ I built it for my own search and I'm sharing it so you can run yours. If it help
 Four tabs on one page:
 
 - **Today** — day and week counter for your search, weekly stats (applied vs. goal, pipeline, interviewing, follow-ups due), the day block by block, and this week's study focus. Both the schedule and the focus have an **Edit** button: rewrite them in plain text, and Reset brings the track's version back.
-- **Applications** — the tracker. Each application moves through `saved → applied → screen → technical → onsite → offer` (or `rejected` / `withdrawn`). Every status change is logged, so you can see which sources actually convert.
+- **Applications** — the tracker. Each application moves through `saved → applied → screen → technical → onsite → offer` (or `rejected` / `withdrawn`). Every status change is logged, so you can see which sources actually convert. Each row also shows the job's posting date and how long ago that was (filled in for you when you save from the board search), so a fresh posting stands out from a stale one.
 - **Study plan** — an 8-week checklist in two tracks: **General** (any role: resume, story bank, applications, outreach, interview practice, negotiation) and **Software engineering** (adds algorithms, system design, and coding mocks). Pick yours in settings. Progress is saved per item. Each track is one JSON file in `tracks/`, so a track for your field is a small contribution (see below).
 - **Companies** — 179 employers to start from, each with a live job board that lists every open role, in every function, and a search box that queries all of them at once and saves what you like into the tracker. See below.
 

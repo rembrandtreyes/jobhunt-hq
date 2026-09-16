@@ -376,6 +376,11 @@
   .drawer .fh { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .drawer .fh h3 { font-size: 20px; }
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    
+    .tbl td.posted b.fresh { color: var(--good); }
+    .tbl td.posted b.muted { color: var(--muted, inherit); font-weight: 400; }
+    .grid3 { grid-template-columns: 1fr 1fr 1fr; }
+
   @media (max-width: 420px) { .grid2 { grid-template-columns: 1fr; } }
   .field { display: grid; gap: 5px; }
   .field > label { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
@@ -549,6 +554,7 @@
         <thead>
           <tr>
             <th>Company / role</th>
+            <th>Posted</th>
             <th>Status</th>
             <th>Applied</th>
             <th>Next step</th>
@@ -663,7 +669,8 @@
         <div class="field"><label for="a-location">Location</label><input type="text" id="a-location" placeholder="Remote, hybrid, city"></div>
         <div class="field"><label for="a-salary">Comp (if known)</label><input type="text" id="a-salary" placeholder="e.g. 150–180k"></div>
       </div>
-      <div class="grid2">
+      <div class="grid2 grid3">
+        <div class="field"><label for="a-posted">Posted on</label><input type="date" id="a-posted"></div>
         <div class="field"><label for="a-applied">Applied on</label><input type="date" id="a-applied"></div>
         <div class="field"><label for="a-next">Next step date</label><input type="date" id="a-next"></div>
       </div>
@@ -870,9 +877,9 @@
     const t = todayISO();
     const d = n => iso(addDays(parse(t), n));
     return [
-      { id: 'ex1', company: 'Northwind Labs', role: 'Software Engineer, Platform', location: 'Remote', status: 'screen', source: 'Referral', appliedAt: d(-3), nextDate: d(1), nextAction: 'Recruiter screen, 10:00 — prep the 90-second intro', example: true },
-      { id: 'ex2', company: 'Acme Cloud', role: 'Backend Engineer II', location: 'Hybrid', status: 'applied', source: 'LinkedIn', appliedAt: d(-5), nextDate: d(2), nextAction: 'Follow up if no reply', example: true },
-      { id: 'ex3', company: 'Bluebird Health', role: 'Full-stack Engineer', location: 'Remote', status: 'saved', source: 'Company site', appliedAt: '', nextDate: '', nextAction: 'Ask a contact for a referral before applying', example: true }
+      { id: 'ex1', company: 'Northwind Labs', role: 'Software Engineer, Platform', location: 'Remote', status: 'screen', source: 'Referral', postedAt: d(-6), appliedAt: d(-3), nextDate: d(1), nextAction: 'Recruiter screen, 10:00 — prep the 90-second intro', example: true },
+      { id: 'ex2', company: 'Acme Cloud', role: 'Backend Engineer II', location: 'Hybrid', status: 'applied', source: 'LinkedIn', postedAt: d(-20), appliedAt: d(-5), nextDate: d(2), nextAction: 'Follow up if no reply', example: true },
+      { id: 'ex3', company: 'Bluebird Health', role: 'Full-stack Engineer', location: 'Remote', status: 'saved', source: 'Company site', postedAt: d(-1), appliedAt: '', nextDate: '', nextAction: 'Ask a contact for a referral before applying', example: true }
     ];
   })();
 
@@ -1091,15 +1098,22 @@
     $$('#app-filters .chip').forEach(c => c.setAttribute('aria-pressed', String(c.dataset.filter === state.filter)));
 
     const body = $('#apps-body');
-    if (!state.loaded) { body.innerHTML = '<tr class="empty-row"><td colspan="6">Loading your applications…</td></tr>'; return; }
+    if (!state.loaded) { body.innerHTML = '<tr class="empty-row"><td colspan="7">Loading your applications…</td></tr>'; return; }
     if (!state.apps.length) {
       body.innerHTML = EXAMPLES.map(appRow).join('') +
-        '<tr class="empty-row"><td colspan="6">These three are examples of how a row reads. Log your first application and they disappear.</td></tr>';
+        '<tr class="empty-row"><td colspan="7">These three are examples of how a row reads. Log your first application and they disappear.</td></tr>';
       return;
     }
     const list = visibleApps();
-    if (!list.length) { body.innerHTML = '<tr class="empty-row"><td colspan="6">Nothing matches this filter.</td></tr>'; return; }
+    if (!list.length) { body.innerHTML = '<tr class="empty-row"><td colspan="7">Nothing matches this filter.</td></tr>'; return; }
     body.innerHTML = list.map(appRow).join('');
+  }
+  // The job's posting date, with how long ago that was; a week or newer reads as fresh.
+  function postedCell(a) {
+    if (!a.postedAt) return '<b class="muted">—</b>';
+    const d = dayDiff(a.postedAt, todayISO());
+    const ago = d <= 0 ? 'today' : d === 1 ? 'yesterday' : d < 60 ? d + 'd ago' : Math.round(d / 30) + ' mo ago';
+    return '<b class="' + (d <= 7 ? 'fresh' : d > 60 ? 'muted' : '') + '">' + esc(fmt(a.postedAt)) + '</b><span>' + esc(ago) + '</span>';
   }
   function appRow(a) {
     const nd = a.nextDate ? dayDiff(todayISO(), a.nextDate) : null;
@@ -1109,6 +1123,7 @@
       STATUSES.map(([k, l]) => '<option value="' + k + '"' + (k === a.status ? ' selected' : '') + '>' + esc(l) + '</option>').join('') + '</select>';
     return '<tr' + (a.example ? ' class="example"' : '') + ' data-id="' + esc(a.id) + '">' +
       '<td class="co"><b>' + esc(a.company) + (a.example ? '<span class="tag">example</span>' : '') + '</b><span>' + esc(a.role) + (a.location ? ' · ' + esc(a.location) : '') + '</span></td>' +
+      '<td class="date posted">' + postedCell(a) + '</td>' +
       '<td>' + sel + '</td>' +
       '<td class="date">' + (a.appliedAt ? esc(fmt(a.appliedAt)) : '—') + '</td>' +
       '<td class="next">' + (a.nextDate ? '<b class="' + cls + '">' + esc(fmt(a.nextDate)) + ' · ' + esc(rel(a.nextDate)) + '</b>' : '<b class="muted">—</b>') + (a.nextAction ? '<span>' + esc(a.nextAction) + '</span>' : '') + '</td>' +
@@ -1231,7 +1246,7 @@
   async function saveOpening(i) {
     const o = openings.rows[i]; if (!o) return;
     const now = new Date().toISOString();
-    const app = { id: newId('a'), company: o.company, role: o.title, url: o.url, status: 'saved', source: 'Job board', location: o.location || '', salary: '', appliedAt: '', nextDate: iso(addDays(new Date(), 2)), nextAction: 'Apply', contact: '', notes: '', createdAt: now, updatedAt: now };
+    const app = { id: newId('a'), company: o.company, role: o.title, url: o.url, status: 'saved', source: 'Job board', location: o.location || '', salary: '', postedAt: o.posted || '', appliedAt: '', nextDate: iso(addDays(new Date(), 2)), nextAction: 'Apply', contact: '', notes: '', createdAt: now, updatedAt: now };
     if (await saveGuard(() => store.saveApp(app), 'Saved to your tracker — apply by ' + fmt(app.nextDate))) renderOpenings();
   }
   $('#openings-form').addEventListener('submit', ev => { ev.preventDefault(); searchOpenings(false); });
@@ -1266,6 +1281,7 @@
     $('#a-source').value = a ? a.source || 'Company site' : 'Company site';
     $('#a-location').value = a ? a.location || '' : '';
     $('#a-salary').value = a ? a.salary || '' : '';
+    $('#a-posted').value = a ? a.postedAt || '' : '';
     $('#a-applied').value = a ? a.appliedAt || '' : todayISO();
     $('#a-next').value = a ? a.nextDate || '' : iso(addDays(new Date(), 7));
     $('#a-nextaction').value = a ? a.nextAction || '' : 'Follow up if no reply';
@@ -1305,7 +1321,7 @@
     const app = {
       id, company: $('#a-company').value.trim(), role: $('#a-role').value.trim(), url: $('#a-url').value.trim(),
       status: $('#a-status').value, source: $('#a-source').value, location: $('#a-location').value.trim(), salary: $('#a-salary').value.trim(),
-      appliedAt: $('#a-applied').value, nextDate: $('#a-next').value, nextAction: $('#a-nextaction').value.trim(),
+      postedAt: $('#a-posted').value, appliedAt: $('#a-applied').value, nextDate: $('#a-next').value, nextAction: $('#a-nextaction').value.trim(),
       contact: $('#a-contact').value.trim(), notes: $('#a-notes').value.trim(),
       createdAt: existing ? existing.createdAt || now : now, updatedAt: now
     };

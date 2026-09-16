@@ -405,3 +405,51 @@ func TestExportImportRoundTrip(t *testing.T) {
 		t.Fatalf("app after round trip = %+v", got.Apps[0])
 	}
 }
+
+func TestPostedAtRoundTripAndMigration(t *testing.T) {
+	s, h := newTestServer(t)
+	a := app("Acme", "SWE", "saved")
+	a.PostedAt = "2026-09-14"
+	if rec := do(t, h, "PUT", "/api/applications/acme-swe", a); rec.Code != 200 {
+		t.Fatalf("create: %d %s", rec.Code, rec.Body)
+	}
+	st := getState(t, h)
+	if len(st.Apps) != 1 || st.Apps[0].PostedAt != "2026-09-14" {
+		t.Fatalf("postedAt did not round-trip: %+v", st.Apps)
+	}
+	if n := count(t, s, `SELECT COUNT(*) FROM applications WHERE posted_at = '2026-09-14'`); n != 1 {
+		t.Fatalf("posted_at rows = %d, want 1", n)
+	}
+
+	// A database created before posted_at existed gains the column on open.
+	path := filepath.Join(t.TempDir(), "old.db")
+	old, err := newServer(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := old.db.Exec(`ALTER TABLE applications DROP COLUMN posted_at`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := old.db.Exec(`INSERT INTO applications (id, company, role, status, created_at, updated_at) VALUES ('legacy', 'Old Co', 'Role', 'applied', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')`); err != nil {
+		t.Fatal(err)
+	}
+	old.db.Close()
+	s2, err := newServer(path)
+	if err != nil {
+		t.Fatalf("reopen: %v", err)
+	}
+	defer s2.db.Close()
+	st2 := getState(t, s2.routes())
+	var found bool
+	for _, x := range st2.Apps {
+		if x.ID == "legacy" {
+			found = true
+			if x.PostedAt != "" || x.Company != "Old Co" {
+				t.Fatalf("legacy row after migration: %+v", x)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("legacy row missing after migration: %+v", st2.Apps)
+	}
+}
